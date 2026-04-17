@@ -3,7 +3,6 @@
 // Run with: node test-backend.mjs
 
 import { createClient } from '@supabase/supabase-js';
-import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync } from 'fs';
 
 // Load .env manually (no extra deps needed)
@@ -17,7 +16,6 @@ const supabase = createClient(
   process.env.EXPO_PUBLIC_SUPABASE_URL,
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
 );
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const testEmail = 'test@opencloset.dev';
 const testPassword = 'TestPassword123!';
@@ -134,35 +132,23 @@ await run('fetch outfits by user returns correct post', async () => {
 
 console.log('\n── AI (Claude Vision) ──');
 
-await run('analyzeOutfitImage returns structured items', async () => {
-  // Fetch a real outfit photo to test with
+await run('Edge Function: analyze-outfit returns structured items', async () => {
   const imageRes = await fetch('https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400&q=80');
   if (!imageRes.ok) throw new Error(`Failed to fetch test image: ${imageRes.status}`);
   const buffer = await imageRes.arrayBuffer();
   const base64 = Buffer.from(buffer).toString('base64');
 
-  const response = await anthropic.messages.create({
-    model: 'claude-opus-4-7',
-    max_tokens: 1024,
-    system: `You are a fashion analysis assistant. Respond with ONLY valid JSON in this exact shape:
-{ "items": [{ "name": "<Title Case name>", "category": "<top|bottom|outerwear|footwear|accessory|dress|other>", "color": "<color>" }] }`,
-    messages: [{
-      role: 'user',
-      content: [
-        { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
-        { type: 'text', text: 'Identify all clothing items in this outfit photo.' },
-      ],
-    }],
+  // Call via the Edge Function — same path the app uses
+  const { data, error } = await supabase.functions.invoke('analyze-outfit', {
+    body: { base64Image: base64, mediaType: 'image/jpeg' },
   });
 
-  const text = response.content[0].type === 'text' ? response.content[0].text : '';
-  const json = JSON.parse(text);
-  if (!Array.isArray(json.items)) throw new Error('Response missing items array');
-  if (!json.items.length) throw new Error('No items detected');
+  if (error) throw new Error(`Edge Function error: ${error.message}`);
+  if (!Array.isArray(data?.items)) throw new Error('items is not an array');
+  if (!data.items.length) throw new Error('No items detected');
 
-  // Print what Claude found (visible in test output)
-  console.log(`\n    Detected ${json.items.length} item(s):`);
-  for (const item of json.items) {
+  console.log(`\n    Detected ${data.items.length} item(s):`);
+  for (const item of data.items) {
     console.log(`      • ${item.name} (${item.category}, ${item.color})`);
   }
   process.stdout.write('  ');
