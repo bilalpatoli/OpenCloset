@@ -1,5 +1,6 @@
-export interface User {
+export interface UserProfile {
   id: string;
-  email: string;
+  username: string;
+  avatar_url: string | null;
   created_at: string;
 }

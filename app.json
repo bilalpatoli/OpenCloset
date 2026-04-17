@@ -5,7 +5,15 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "opencloset",
-    "platforms": ["ios", "android"],
-    "assetBundlePatterns": ["**/*"]
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "plugins": [
+      "expo-asset"
+    ]
   }
 }

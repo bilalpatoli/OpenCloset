@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { fetchFeed } from '../services/outfits';
-import type { Outfit } from '../types/outfit';
+import type { OutfitPostWithItems } from '../types/outfit';
 
 export function useFeed() {
-  const [outfits, setOutfits] = useState<Outfit[]>([]);
+  const [outfits, setOutfits] = useState<OutfitPostWithItems[]>([]);
 
   useEffect(() => {
-    fetchFeed().then(({ data }) => setOutfits(data ?? []));
+    fetchFeed().then(setOutfits).catch(console.error);
   }, []);
 
   return { outfits };
