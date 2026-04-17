@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "OpenCloset",
+    "slug": "opencloset",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "opencloset",
+    "platforms": ["ios", "android"],
+    "assetBundlePatterns": ["**/*"]
+  }
+}
