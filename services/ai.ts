@@ -6,15 +6,13 @@ const client = new Anthropic({
 });
 
 export interface DetectedItem {
+  name: string;
   category: ClothingCategory;
-  label: string;
   color?: string;
-  brand?: string;
 }
 
 export interface OutfitAnalysisResult {
   items: DetectedItem[];
-  raw: string;
 }
 
 const SYSTEM_PROMPT = `You are a fashion analysis assistant. When given a photo of an outfit, identify every visible clothing item and accessory.
@@ -23,31 +21,30 @@ Respond with ONLY valid JSON in this exact shape — no markdown, no explanation
 {
   "items": [
     {
+      "name": "<descriptive item name, e.g. 'White Crew-Neck T-Shirt'>",
       "category": "<one of: top | bottom | outerwear | footwear | accessory | dress | other>",
-      "label": "<specific item name, e.g. 'white crew-neck t-shirt'>",
-      "color": "<primary color or color description>",
-      "brand": "<brand name if visible, otherwise omit>"
+      "color": "<primary color>"
     }
   ]
 }
 
 Rules:
-- Be specific with labels (e.g. "slim-fit dark jeans" not just "pants")
-- Only include items that are clearly visible
-- Use lowercase for all string values
-- If you cannot detect any clothing, return { "items": [] }`;
+- Only include items that are clearly visible in the photo
+- Use Title Case for item names (e.g. 'Black Slim-Fit Jeans', not 'black jeans')
+- Do not infer or guess brand names
+- If uncertain about an item, make a conservative best guess
+- If no clothing is visible, return { "items": [] }`;
 
-function parseAnalysisResponse(text: string): DetectedItem[] {
+function parseResponse(text: string): DetectedItem[] {
   const json = JSON.parse(text);
-  if (!Array.isArray(json.items)) throw new Error('Unexpected response shape');
+  if (!Array.isArray(json.items)) throw new Error('Unexpected AI response shape');
 
   return json.items.map((item: Record<string, string>) => ({
+    name: item.name ?? 'Unknown Item',
     category: CLOTHING_CATEGORIES.includes(item.category as ClothingCategory)
       ? (item.category as ClothingCategory)
       : 'other',
-    label: item.label ?? 'unknown item',
     ...(item.color ? { color: item.color } : {}),
-    ...(item.brand ? { brand: item.brand } : {}),
   }));
 }
 
@@ -65,11 +62,7 @@ export async function analyzeOutfitImage(
         content: [
           {
             type: 'image',
-            source: {
-              type: 'base64',
-              media_type: mediaType,
-              data: base64Image,
-            },
+            source: { type: 'base64', media_type: mediaType, data: base64Image },
           },
           {
             type: 'text',
@@ -81,7 +74,5 @@ export async function analyzeOutfitImage(
   });
 
   const raw = response.content[0].type === 'text' ? response.content[0].text : '';
-  const items = parseAnalysisResponse(raw);
-
-  return { items, raw };
+  return { items: parseResponse(raw) };
 }
