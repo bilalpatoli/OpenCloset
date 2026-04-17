@@ -58,11 +58,32 @@ The system prompt in `services/ai.ts:20–38` defines the JSON schema Claude ret
 
 ### Supabase Integration
 
-`services/supabase.ts` is a singleton client used by `auth.ts`, `closet.ts`, and `outfits.ts`. Tables likely include: users (auth), closet_items, outfits, outfit_likes. Row-level security should isolate user data.
+`services/supabase.ts` is a singleton client used by `auth.ts`, `closet.ts`, and `outfits.ts`. Row-level security isolates user data.
+
+**Database Schema:**
+
+| Table | Fields |
+|-------|--------|
+| `users` | id, username, avatar_url |
+| `outfit_posts` | id, user_id, image_url, caption, created_at |
+| `closet_items` | id, user_id, name, category, color, image_url, created_at |
+| `outfit_items` | id, outfit_post_id, closet_item_id |
 
 ### Routing
 
 Expo Router generates routes from file structure. Post-login flow: camera → `/outfit/review` → Claude analysis → `/outfit/success` → closet saved. Auth screens show first if unauthenticated.
+
+### User Flow
+
+1. User signs up or logs in
+2. User opens Camera tab
+3. User takes or uploads a photo of their outfit
+4. Image is sent to Claude for outfit analysis
+5. Claude returns a structured list of clothing items
+6. User reviews and edits the detected items
+7. User saves items to their closet
+8. User can optionally post the full outfit to the public feed
+9. Other users can view profiles and closets
 
 ## Key Implementation Notes
 
@@ -74,3 +95,7 @@ Expo Router generates routes from file structure. Post-login flow: camera → `/
 1. Create service in `services/` (stateless API logic)
 2. Create hook in `hooks/` (state management, calls service)
 3. Consume hook in component
+
+**MVP Scope:** Do not build features outside the MVP unless clearly useful. Do not add unnecessary libraries.
+
+**Claude AI Behavior:** Only identify visible clothing and accessories. Make a best guess when uncertain but stay conservative. Do not infer brand unless clearly visible on the item. Do not invent hidden clothing items. Always let the user edit detected items before saving.
