@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 OpenCloset is an AI-powered mobile app built with **Expo and React Native** that captures outfit photos, uses Claude Vision API to identify clothing items, and stores them in a personal digital closet.
 
 **Tech Stack:**
-- Expo 52 / React Native 0.76
+- Expo 54 / React Native 0.76
 - Expo Router (file-based navigation)
 - Supabase (auth, database, storage)
 - Claude Vision API (Anthropic SDK)
