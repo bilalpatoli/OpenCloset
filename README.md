@@ -17,14 +17,6 @@ cp .env.example .env
 npm start
 ```
 
-## Team
-
-| Area | Owner |
-|------|-------|
-| AI / image analysis / product logic | Bilal |
-| TBD | TBD |
-| TBD | TBD |
-
 ## Folder Structure
 
 ```
