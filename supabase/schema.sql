@@ -108,6 +108,31 @@ create policy "Users can delete outfit items for own posts"
   );
 
 -- ============================================================
+-- TRIGGER: auto-create user profile on signup
+-- Runs as security definer so it bypasses RLS on the users table.
+-- The username is passed via signUp options.data.username in the client.
+-- ============================================================
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  insert into public.users (id, username)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1))
+  );
+  return new;
+end;
+$$;
+
+create or replace trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
+-- ============================================================
 -- STORAGE
 -- Run these or create the bucket manually in the Supabase dashboard:
 -- Dashboard > Storage > New Bucket > Name: "outfit-images", Public: true
