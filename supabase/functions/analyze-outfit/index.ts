@@ -65,9 +65,9 @@ serve(async (req) => {
     }
 
     // Parse request body
-    const { base64Image, mediaType = 'image/jpeg' } = await req.json();
-    if (!base64Image) {
-      return new Response(JSON.stringify({ error: 'Missing base64Image in request body' }), {
+    const { image, mediaType = 'image/jpeg' } = await req.json();
+    if (!image) {
+      return new Response(JSON.stringify({ error: 'Missing image in request body' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -91,7 +91,7 @@ serve(async (req) => {
             content: [
               {
                 type: 'image',
-                source: { type: 'base64', media_type: mediaType, data: base64Image },
+                source: { type: 'base64', media_type: mediaType, data: image },
               },
               {
                 type: 'text',

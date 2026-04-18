@@ -20,3 +20,13 @@ export interface OutfitPostWithItems extends OutfitPost {
   user: Pick<UserProfile, 'username' | 'avatar_url'>;
   items: ClosetItem[];
 }
+
+// Comment with the author's public profile joined in
+export interface CommentWithUser {
+  id: string;
+  post_id: string;
+  user_id: string;
+  body: string;
+  created_at: string;
+  user: Pick<UserProfile, 'username' | 'avatar_url'>;
+}

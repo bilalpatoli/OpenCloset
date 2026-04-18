@@ -18,7 +18,7 @@ export async function analyzeOutfitImage(
   mediaType: 'image/jpeg' | 'image/png' | 'image/webp' = 'image/jpeg'
 ): Promise<OutfitAnalysisResult> {
   const { data, error } = await supabase.functions.invoke('analyze-outfit', {
-    body: { base64Image, mediaType },
+    body: { image: base64Image, mediaType },
   });
 
   if (error) throw error;
