@@ -20,6 +20,7 @@ export default function RootLayout() {
         <Stack.Screen name="auth/signup" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="outfit/review" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="outfit/success" options={{ animation: 'fade' }} />
+        <Stack.Screen name="outfit/comments" options={{ animation: 'slide_from_bottom', headerShown: true, title: 'Comments' }} />
         <Stack.Screen name="closet/item" options={{ animation: 'slide_from_right' }} />
       </Stack>
     </SafeAreaProvider>

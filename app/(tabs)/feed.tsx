@@ -14,10 +14,12 @@ import { useRouter } from 'expo-router';
 import Header from '../../components/Header';
 import OutfitCard from '../../components/OutfitCard';
 import { useFeed } from '../../hooks/useFeed';
+import { useAuth } from '../../hooks/useAuth';
 import { colors, spacing, typography } from '../../utils/theme';
 
 export default function FeedScreen() {
   const { outfits } = useFeed();
+  const { userId } = useAuth();
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -44,7 +46,7 @@ export default function FeedScreen() {
         keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => (
           <View style={styles.cardWrapper}>
-            <OutfitCard outfit={item} index={index} />
+            <OutfitCard outfit={item} index={index} currentUserId={userId} />
           </View>
         )}
         contentContainerStyle={styles.list}
