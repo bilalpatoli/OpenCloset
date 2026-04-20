@@ -30,7 +30,28 @@ function mimeFromUri(uri: string): MediaType {
 export default function CameraScreen() {
   const router = useRouter();
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [pendingBase64, setPendingBase64] = useState<{ data: string; mediaType: MediaType } | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+
+  async function runAnalysis(uri: string, base64: string, mediaType: MediaType) {
+    setAnalyzing(true);
+    try {
+      const analysis = await analyzeOutfitImage(base64, mediaType);
+      setPendingBase64(null);
+      router.push({
+        pathname: '/outfit/review',
+        params: {
+          imageUri: uri,
+          items: JSON.stringify(analysis.items),
+        },
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Please try again.';
+      Alert.alert('Analysis failed', message);
+    } finally {
+      setAnalyzing(false);
+    }
+  }
 
   async function pickImage(fromCamera: boolean) {
     const permission = fromCamera
@@ -56,21 +77,9 @@ export default function CameraScreen() {
       return;
     }
 
-    setAnalyzing(true);
-    try {
-      const analysis = await analyzeOutfitImage(asset.base64, mimeFromUri(asset.uri));
-      router.push({
-        pathname: '/outfit/review',
-        params: {
-          imageUri: asset.uri,
-          items: JSON.stringify(analysis.items),
-        },
-      });
-    } catch (err) {
-      Alert.alert('Analysis failed', 'Claude could not analyse the image. Please try again.');
-    } finally {
-      setAnalyzing(false);
-    }
+    const mediaType = mimeFromUri(asset.uri);
+    setPendingBase64({ data: asset.base64, mediaType });
+    await runAnalysis(asset.uri, asset.base64, mediaType);
   }
 
   return (
@@ -109,27 +118,39 @@ export default function CameraScreen() {
                 <ActivityIndicator color={colors.white} size="large" />
                 <Text style={styles.overlayText}>Reading the scene…</Text>
                 <Text style={styles.overlaySub}>
-                  Claude is identifying each piece
+                  Identifying each piece
                 </Text>
               </View>
             )}
           </View>
 
           {imageUri && !analyzing && (
-            <TouchableOpacity
-              style={styles.retakeChip}
-              onPress={() => setImageUri(null)}
-              hitSlop={8}
-            >
-              <Ionicons name="close" size={14} color={colors.text} />
-              <Text style={styles.retakeText}>Clear</Text>
-            </TouchableOpacity>
+            <View style={styles.imageActions}>
+              {pendingBase64 && (
+                <TouchableOpacity
+                  style={styles.retakeChip}
+                  onPress={() => runAnalysis(imageUri, pendingBase64.data, pendingBase64.mediaType)}
+                  hitSlop={8}
+                >
+                  <Ionicons name="refresh" size={14} color={colors.text} />
+                  <Text style={styles.retakeText}>Retry</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={styles.retakeChip}
+                onPress={() => { setImageUri(null); setPendingBase64(null); }}
+                hitSlop={8}
+              >
+                <Ionicons name="close" size={14} color={colors.text} />
+                <Text style={styles.retakeText}>Clear</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
 
         <View style={styles.steps}>
           <StepRow index="01" title="Capture" body="Snap or select a photo of your outfit" />
-          <StepRow index="02" title="Review" body="Edit or remove items Claude detected" />
+          <StepRow index="02" title="Review" body="Edit or remove items detected" />
           <StepRow index="03" title="Save" body="Pieces are filed into your closet" />
         </View>
 
@@ -239,9 +260,13 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
     letterSpacing: 0.5,
   },
-  retakeChip: {
-    alignSelf: 'flex-end',
+  imageActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
     marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  retakeChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
