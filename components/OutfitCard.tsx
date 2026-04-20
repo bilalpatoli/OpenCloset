@@ -57,6 +57,11 @@ export default function OutfitCard({ outfit, onPress, onDelete }: OutfitCardProp
             <Text style={styles.meta}>{formatRelative(outfit.created_at)}</Text>
           </View>
         </TouchableOpacity>
+        {onDelete && (
+          <TouchableOpacity onPress={onDelete} hitSlop={8} style={styles.deleteBtn}>
+            <Ionicons name="trash-outline" size={15} color={colors.textTertiary} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.imageFrame}>
