@@ -70,11 +70,12 @@ export default function LoginScreen() {
             <Field
               label="Username"
               value={username}
-              onChangeText={setUsername}
+              onChangeText={(v) => setUsername(v.toLowerCase())}
               placeholder="yourhandle"
               autoCapitalize="none"
               keyboardType="default"
               autoComplete="username"
+              maxLength={30}
             />
             <Field
               label="Password"
@@ -142,6 +143,7 @@ interface FieldProps {
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   keyboardType?: 'default' | 'email-address';
   autoComplete?: string;
+  maxLength?: number;
   rightSlot?: React.ReactNode;
 }
 
@@ -154,6 +156,7 @@ export function Field({
   autoCapitalize,
   keyboardType,
   autoComplete,
+  maxLength,
   rightSlot,
 }: FieldProps) {
   return (
@@ -170,6 +173,7 @@ export function Field({
           autoCapitalize={autoCapitalize}
           keyboardType={keyboardType}
           autoComplete={autoComplete as any}
+          maxLength={maxLength}
         />
         {rightSlot}
       </View>

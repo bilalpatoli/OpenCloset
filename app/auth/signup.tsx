@@ -29,6 +29,10 @@ export default function SignupScreen() {
       Alert.alert('Missing details', 'Please fill out every field to continue.');
       return;
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      Alert.alert('Invalid email', 'Please enter a valid email address.');
+      return;
+    }
     if (password.length < 6) {
       Alert.alert('Weak password', 'Use at least 6 characters.');
       return;
@@ -78,9 +82,10 @@ export default function SignupScreen() {
             <Field
               label="Username"
               value={username}
-              onChangeText={setUsername}
+              onChangeText={(v) => setUsername(v.toLowerCase())}
               placeholder="e.g. rowan"
               autoCapitalize="none"
+              maxLength={30}
             />
             <Field
               label="Email"
@@ -90,6 +95,7 @@ export default function SignupScreen() {
               autoCapitalize="none"
               keyboardType="email-address"
               autoComplete="email"
+              maxLength={254}
             />
             <Field
               label="Password"
@@ -98,6 +104,7 @@ export default function SignupScreen() {
               placeholder="At least 6 characters"
               secureTextEntry={!showPwd}
               autoCapitalize="none"
+              maxLength={72}
               rightSlot={
                 <TouchableOpacity onPress={() => setShowPwd((v) => !v)} hitSlop={8}>
                   <Ionicons
