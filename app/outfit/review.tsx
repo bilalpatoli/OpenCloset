@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Header from '../../components/Header';
 import { useAuth } from '../../hooks/useAuth';
 import { saveClosetItem } from '../../services/closet';
+import { createOutfitPost } from '../../services/outfits';
 import { uploadOutfitImage } from '../../services/storage';
 import type { DetectedItem } from '../../services/ai';
 import { CLOTHING_CATEGORIES, type ClothingCategory } from '../../utils/constants';
@@ -83,6 +84,10 @@ export default function OutfitReviewScreen() {
       if (failed > 0) {
         Alert.alert('Partially saved', `${confirmed.length - failed} of ${confirmed.length} items saved.`);
       }
+      const savedIds = results
+        .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof saveClosetItem>>> => r.status === 'fulfilled')
+        .map((r) => r.value.id);
+      await createOutfitPost({ user_id: userId, image_url: imageUrl, caption: undefined }, savedIds);
       router.replace('/outfit/success');
     } catch {
       Alert.alert('Save failed', 'Something went wrong uploading your photo. Please try again.');

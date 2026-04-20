@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { colors, spacing, typography } from '../utils/theme';
 
 interface HeaderProps {
-  title: string;
+  title?: string;
   eyebrow?: string;
   index?: string;
   showBack?: boolean;
@@ -50,10 +50,12 @@ export default function Header({
         <View style={styles.rightSlot}>{right}</View>
       </View>
 
-      <View style={styles.titleBlock}>
-        {eyebrow && <Text style={styles.eyebrow}>{eyebrow}</Text>}
-        <Text style={styles.title}>{title}</Text>
-      </View>
+      {(eyebrow || title) && (
+        <View style={styles.titleBlock}>
+          {eyebrow && <Text style={styles.eyebrow}>{eyebrow}</Text>}
+          {title && <Text style={styles.title}>{title}</Text>}
+        </View>
+      )}
     </View>
   );
 }
