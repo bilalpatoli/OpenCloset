@@ -13,24 +13,24 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { login } from '../../services/auth';
+import { loginWithUsername } from '../../services/auth';
 import { colors, radius, spacing, typography } from '../../utils/theme';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function handleLogin() {
-    if (!email.trim() || !password) {
-      Alert.alert('Missing details', 'Please enter both email and password.');
+    if (!username.trim() || !password) {
+      Alert.alert('Missing details', 'Please enter both username and password.');
       return;
     }
     setLoading(true);
     try {
-      await login(email.trim(), password);
+      await loginWithUsername(username.trim(), password);
       router.replace('/(tabs)/feed');
     } catch (err: any) {
       Alert.alert('Unable to sign in', err?.message ?? 'Please try again.');
@@ -68,13 +68,13 @@ export default function LoginScreen() {
 
           <View style={styles.form}>
             <Field
-              label="Email"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@example.com"
+              label="Username"
+              value={username}
+              onChangeText={setUsername}
+              placeholder="yourhandle"
               autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
+              keyboardType="default"
+              autoComplete="username"
             />
             <Field
               label="Password"
