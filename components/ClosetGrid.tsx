@@ -96,8 +96,8 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  tileLeft: { marginTop: 0 },
-  tileRight: { marginTop: spacing.xl },
+  tileLeft: {},
+  tileRight: {},
   imageWrap: { position: 'relative', backgroundColor: colors.surface },
   image: { width: '100%', aspectRatio: 1, resizeMode: 'cover' },
   imagePlaceholder: {

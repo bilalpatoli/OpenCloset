@@ -59,18 +59,9 @@ export default function FeedScreen() {
         ListHeaderComponent={
           <View>
             <Header
-              index="NO. 01"
-              eyebrow="Daily Edit"
-              title="The Feed"
+              index="Feed"
               right={headerRight}
             />
-            <View style={styles.divider}>
-              <Text style={styles.dividerLabel}>Recent looks</Text>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerCount}>
-                {String(outfits.length).padStart(2, '0')}
-              </Text>
-            </View>
           </View>
         }
         ListEmptyComponent={
@@ -110,27 +101,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingHorizontal: spacing.xl,
-    marginBottom: spacing.lg,
-  },
-  dividerLabel: {
-    fontFamily: typography.body,
-    fontSize: 10,
-    letterSpacing: 1.8,
-    textTransform: 'uppercase',
-    color: colors.textSecondary,
-  },
-  dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
-  dividerCount: {
-    fontFamily: typography.serif,
-    fontStyle: 'italic',
-    fontSize: 13,
-    color: colors.accent,
   },
   empty: {
     marginTop: spacing.xxxl,

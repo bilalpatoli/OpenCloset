@@ -89,9 +89,7 @@ export default function CameraScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Header
-          index="NO. 03"
-          eyebrow="Capture"
-          title="A new entry"
+          index="Capture"
         />
 
         <View style={styles.stageCard}>
@@ -146,29 +144,31 @@ export default function CameraScreen() {
               </TouchableOpacity>
             </View>
           )}
+
+          {!imageUri && (
+            <View style={styles.cardActions}>
+              <CameraButton
+                label={analyzing ? 'Analysing…' : 'Take Photo'}
+                icon="camera"
+                variant="primary"
+                onPress={() => pickImage(true)}
+                loading={analyzing}
+              />
+              <CameraButton
+                label="Choose from Library"
+                icon="image"
+                variant="ghost"
+                onPress={() => pickImage(false)}
+                disabled={analyzing}
+              />
+            </View>
+          )}
         </View>
 
         <View style={styles.steps}>
           <StepRow index="01" title="Capture" body="Snap or select a photo of your outfit" />
           <StepRow index="02" title="Review" body="Edit or remove items detected" />
           <StepRow index="03" title="Save" body="Pieces are filed into your closet" />
-        </View>
-
-        <View style={styles.actions}>
-          <CameraButton
-            label={analyzing ? 'Analysing…' : 'Take Photo'}
-            icon="camera"
-            variant="primary"
-            onPress={() => pickImage(true)}
-            loading={analyzing}
-          />
-          <CameraButton
-            label="Choose from Library"
-            icon="image"
-            variant="ghost"
-            onPress={() => pickImage(false)}
-            disabled={analyzing}
-          />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -315,9 +315,8 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 18,
   },
-  actions: {
-    marginTop: spacing.xl,
-    marginHorizontal: spacing.lg,
-    gap: spacing.md,
+  cardActions: {
+    marginTop: spacing.md,
+    gap: spacing.sm,
   },
 });

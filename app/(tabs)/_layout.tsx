@@ -53,15 +53,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="closet"
-        options={{
-          title: 'Closet',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name={focused ? 'albums' : 'albums-outline'} focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="camera"
         options={{
           title: 'Capture',
@@ -71,11 +62,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="closet"
         options={{
-          title: 'Profile',
+          title: 'Closet',
           tabBarIcon: ({ focused }) => (
-            <TabIcon name={focused ? 'person' : 'person-outline'} focused={focused} />
+            <TabIcon name={focused ? 'albums' : 'albums-outline'} focused={focused} />
           ),
         }}
       />
