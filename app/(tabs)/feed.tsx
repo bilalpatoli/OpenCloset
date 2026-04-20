@@ -44,11 +44,10 @@ export default function FeedScreen() {
       <FlatList
         data={outfits}
         keyExtractor={(item) => item.id}
-        renderItem={({ item, index }) => (
+        renderItem={({ item }) => (
           <View style={styles.cardWrapper}>
             <OutfitCard
               outfit={item}
-              index={index}
               onDelete={item.user_id === userId ? () => {
                 Alert.alert(
                   'Remove this look?',

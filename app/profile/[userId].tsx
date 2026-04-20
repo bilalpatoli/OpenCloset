@@ -6,72 +6,63 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Image,
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import ClosetGrid from '../../components/ClosetGrid';
-import { useAuth } from '../../hooks/useAuth';
-import { useCloset } from '../../hooks/useCloset';
 import { fetchUserProfile } from '../../services/users';
 import { fetchOutfitsByUser } from '../../services/outfits';
-import { logout } from '../../services/auth';
+import { fetchCloset } from '../../services/closet';
 import { CLOTHING_CATEGORIES, type ClothingCategory } from '../../utils/constants';
 import { colors, radius, spacing, typography } from '../../utils/theme';
 import type { UserProfile } from '../../types/user';
 import type { OutfitPostWithItems } from '../../types/outfit';
+import type { ClosetItem } from '../../types/closet';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const LOOK_ITEM_WIDTH = (SCREEN_WIDTH - spacing.lg * 2 - spacing.sm) / 2;
 
 type Filter = 'all' | ClothingCategory;
 
-export default function ClosetScreen() {
-  const { userId, loading } = useAuth();
-  const { items } = useCloset(userId);
+export default function ProfileScreen() {
+  const { userId } = useLocalSearchParams<{ userId: string }>();
   const router = useRouter();
-  const [filter, setFilter] = useState<Filter>('all');
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [outfits, setOutfits] = useState<OutfitPostWithItems[]>([]);
+  const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<Filter>('all');
 
   useEffect(() => {
     if (!userId) return;
-    fetchUserProfile(userId).then(setProfile).catch(console.error);
-    fetchOutfitsByUser(userId).then(setOutfits).catch(console.error);
+    Promise.all([
+      fetchUserProfile(userId),
+      fetchOutfitsByUser(userId),
+      fetchCloset(userId),
+    ])
+      .then(([p, o, c]) => {
+        setProfile(p);
+        setOutfits(o);
+        setClosetItems(c);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, [userId]);
 
   const counts = useMemo(() => {
-    const map: Record<string, number> = { all: items.length };
+    const map: Record<string, number> = { all: closetItems.length };
     for (const cat of CLOTHING_CATEGORIES) map[cat] = 0;
-    for (const item of items) map[item.category] = (map[item.category] ?? 0) + 1;
+    for (const item of closetItems) map[item.category] = (map[item.category] ?? 0) + 1;
     return map;
-  }, [items]);
+  }, [closetItems]);
 
   const filtered = useMemo(
-    () => (filter === 'all' ? items : items.filter((i) => i.category === filter)),
-    [items, filter]
+    () => (filter === 'all' ? closetItems : closetItems.filter((i) => i.category === filter)),
+    [closetItems, filter]
   );
-
-  async function handleLogout() {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await logout();
-            router.replace('/auth/login');
-          } catch {
-            Alert.alert('Error', 'Could not sign out. Please try again.');
-          }
-        },
-      },
-    ]);
-  }
 
   if (loading) {
     return (
@@ -81,36 +72,21 @@ export default function ClosetScreen() {
     );
   }
 
-  const username = profile?.username ?? '';
+  const username = profile?.username ?? 'unknown';
   const initial = username.charAt(0).toUpperCase() || '?';
   const recentOutfits = outfits.slice(0, 6);
-
-  const headerRight = (
-    <View style={styles.headerIcons}>
-      <TouchableOpacity
-        hitSlop={10}
-        style={styles.iconBtn}
-        onPress={() => router.push('/(tabs)/camera')}
-      >
-        <Ionicons name="add" size={22} color={colors.text} />
-      </TouchableOpacity>
-      <TouchableOpacity
-        hitSlop={10}
-        style={styles.iconBtn}
-        onPress={handleLogout}
-      >
-        <Ionicons name="log-out-outline" size={20} color={colors.text} />
-      </TouchableOpacity>
-    </View>
-  );
 
   const HeaderBlock = (
     <View>
       <View style={styles.pageHeader}>
         <View style={styles.pageHeaderRow}>
-          <View style={styles.pageHeaderPlaceholder} />
-          <Text style={styles.pageIndex}>Closet</Text>
-          {headerRight}
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={20} color={colors.text} />
+          </TouchableOpacity>
+          <View style={styles.pageTitleOverlay} pointerEvents="none">
+            <Text style={styles.pageIndex}>Closet</Text>
+          </View>
+          <View style={styles.iconBtnPlaceholder} />
         </View>
       </View>
 
@@ -124,9 +100,7 @@ export default function ClosetScreen() {
           )}
         </View>
         <View style={styles.profileInfo}>
-          {username ? (
-            <Text style={styles.username}>@{username}</Text>
-          ) : null}
+          {username ? <Text style={styles.username}>@{username}</Text> : null}
         </View>
       </View>
 
@@ -134,7 +108,7 @@ export default function ClosetScreen() {
       <View style={styles.summaryCard}>
         <View style={styles.summaryCol}>
           <Text style={styles.summaryValue}>
-            {String(items.length).padStart(2, '0')}
+            {String(closetItems.length).padStart(2, '0')}
           </Text>
           <Text style={styles.summaryLabel}>Pieces</Text>
         </View>
@@ -158,9 +132,6 @@ export default function ClosetScreen() {
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionLabel}>Recent looks</Text>
         <View style={styles.sectionLine} />
-        <TouchableOpacity onPress={() => router.push('/(tabs)/feed')}>
-          <Text style={styles.sectionLink}>See all</Text>
-        </TouchableOpacity>
       </View>
 
       {recentOutfits.length > 0 ? (
@@ -188,11 +159,11 @@ export default function ClosetScreen() {
       ) : (
         <View style={styles.emptyLooks}>
           <Ionicons name="image-outline" size={22} color={colors.textTertiary} />
-          <Text style={styles.emptyLooksText}>No looks captured yet</Text>
+          <Text style={styles.emptyLooksText}>No looks yet</Text>
         </View>
       )}
 
-      {/* Wardrobe section label */}
+      {/* Wardrobe section */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionLabel}>Wardrobe</Text>
         <View style={styles.sectionLine} />
@@ -229,7 +200,7 @@ export default function ClosetScreen() {
         ListHeaderComponent={HeaderBlock}
         emptyMessage={
           filter === 'all'
-            ? 'Your closet is empty — capture your first outfit.'
+            ? `${username}'s closet is empty.`
             : `Nothing in ${filter} yet.`
         }
       />
@@ -266,6 +237,12 @@ function FilterChip({
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
+  safeLoading: {
+    flex: 1,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   pageHeader: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
@@ -278,28 +255,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     height: 36,
   },
-  pageHeaderPlaceholder: { width: 36, height: 36 },
-  pageIndex: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontFamily: typography.serif,
-    fontStyle: 'italic',
-    fontSize: 13,
-    color: colors.accent,
-    letterSpacing: 1.5,
-  },
-  safeLoading: {
-    flex: 1,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerIcons: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
   iconBtn: {
     width: 36,
     height: 36,
@@ -309,6 +264,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
+  },
+  iconBtnPlaceholder: { width: 36 },
+  pageTitleOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pageIndex: {
+    fontFamily: typography.serif,
+    fontStyle: 'italic',
+    fontSize: 13,
+    color: colors.accent,
+    letterSpacing: 1.5,
   },
   profileRow: {
     flexDirection: 'row',
@@ -335,22 +303,12 @@ const styles = StyleSheet.create({
     fontSize: 32,
     color: colors.text,
   },
-  profileInfo: {
-    flex: 1,
-    gap: 6,
-  },
+  profileInfo: { flex: 1, gap: 6 },
   username: {
     fontFamily: typography.display,
     fontSize: 16,
     color: colors.text,
     letterSpacing: -0.3,
-  },
-  bio: {
-    fontFamily: typography.serif,
-    fontStyle: 'italic',
-    fontSize: 13,
-    color: colors.textSecondary,
-    lineHeight: 19,
   },
   summaryCard: {
     marginHorizontal: spacing.lg,
@@ -392,12 +350,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   sectionLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
-  sectionLink: {
-    fontFamily: typography.serif,
-    fontStyle: 'italic',
-    fontSize: 13,
-    color: colors.accent,
-  },
   looksGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

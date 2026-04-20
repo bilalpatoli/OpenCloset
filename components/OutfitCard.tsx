@@ -1,13 +1,13 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { colors, radius, spacing, typography } from '../utils/theme';
 import ItemTag from './ItemTag';
 import type { OutfitPostWithItems } from '../types/outfit';
 
 interface OutfitCardProps {
   outfit: OutfitPostWithItems;
-  index?: number;
   onPress?: () => void;
   onDelete?: () => void;
 }
@@ -26,11 +26,16 @@ function formatRelative(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
-export default function OutfitCard({ outfit, index, onPress, onDelete }: OutfitCardProps) {
+export default function OutfitCard({ outfit, onPress, onDelete }: OutfitCardProps) {
+  const router = useRouter();
   const username = outfit.user?.username ?? 'anonymous';
   const initial = username.charAt(0).toUpperCase();
   const itemCount = outfit.items?.length ?? 0;
   const displayItems = (outfit.items ?? []).slice(0, 3);
+
+  function handleUsernamePress() {
+    router.push(`/profile/${outfit.user_id}`);
+  }
 
   return (
     <TouchableOpacity
@@ -39,7 +44,11 @@ export default function OutfitCard({ outfit, index, onPress, onDelete }: OutfitC
       onPress={onPress}
     >
       <View style={styles.headerRow}>
-        <View style={styles.authorRow}>
+        <TouchableOpacity
+          style={styles.authorRow}
+          activeOpacity={0.7}
+          onPress={handleUsernamePress}
+        >
           <View style={styles.avatar}>
             <Text style={styles.avatarInitial}>{initial}</Text>
           </View>
@@ -47,19 +56,7 @@ export default function OutfitCard({ outfit, index, onPress, onDelete }: OutfitC
             <Text style={styles.username}>@{username}</Text>
             <Text style={styles.meta}>{formatRelative(outfit.created_at)}</Text>
           </View>
-        </View>
-        <View style={styles.headerRight}>
-          {typeof index === 'number' && (
-            <Text style={styles.indexMark}>
-              {String(index + 1).padStart(2, '0')}
-            </Text>
-          )}
-          {onDelete && (
-            <TouchableOpacity onPress={onDelete} hitSlop={8} style={styles.deleteBtn}>
-              <Ionicons name="trash-outline" size={15} color={colors.textTertiary} />
-            </TouchableOpacity>
-          )}
-        </View>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.imageFrame}>
