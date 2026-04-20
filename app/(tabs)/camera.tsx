@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Header from '../../components/Header';
 import CameraButton from '../../components/CameraButton';
 import { analyzeOutfitImage } from '../../services/ai';
+import { uploadStore } from '../../services/uploadStore';
 import { colors, radius, spacing, typography } from '../../utils/theme';
 
 type MediaType = 'image/jpeg' | 'image/png' | 'image/webp';
@@ -79,6 +80,7 @@ export default function CameraScreen() {
 
     const mediaType = mimeFromUri(asset.uri);
     setPendingBase64({ data: asset.base64, mediaType });
+    uploadStore.set(asset.base64, mediaType);
     await runAnalysis(asset.uri, asset.base64, mediaType);
   }
 

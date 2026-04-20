@@ -84,8 +84,9 @@ export default function OutfitReviewScreen() {
         Alert.alert('Partially saved', `${confirmed.length - failed} of ${confirmed.length} items saved.`);
       }
       router.replace('/outfit/success');
-    } catch {
-      Alert.alert('Save failed', 'Something went wrong uploading your photo. Please try again.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      Alert.alert('Save failed', msg);
     } finally {
       setSaving(false);
     }
