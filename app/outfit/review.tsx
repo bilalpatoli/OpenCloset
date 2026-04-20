@@ -44,6 +44,7 @@ export default function OutfitReviewScreen() {
     }))
   );
   const [saving, setSaving] = useState(false);
+  const [caption, setCaption] = useState('');
 
   function updateItem(key: string, patch: Partial<EditableItem>) {
     setItems((prev) =>
@@ -87,7 +88,7 @@ export default function OutfitReviewScreen() {
       const savedIds = results
         .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof saveClosetItem>>> => r.status === 'fulfilled')
         .map((r) => r.value.id);
-      await createOutfitPost({ user_id: userId, image_url: imageUrl, caption: undefined }, savedIds);
+      await createOutfitPost({ user_id: userId, image_url: imageUrl, caption: caption.trim() || undefined }, savedIds);
       router.replace('/outfit/success');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Something went wrong uploading your photo. Please try again.';
@@ -149,6 +150,18 @@ export default function OutfitReviewScreen() {
         )}
         ListFooterComponent={<View style={{ height: spacing.xxl }} />}
       />
+
+      <View style={styles.captionBar}>
+        <TextInput
+          style={styles.captionInput}
+          value={caption}
+          onChangeText={setCaption}
+          placeholder="Add a caption…"
+          placeholderTextColor={colors.textTertiary}
+          maxLength={200}
+          editable={!saving}
+        />
+      </View>
 
       <View style={styles.bottomBar}>
         <View style={styles.bottomStat}>
@@ -314,6 +327,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textSecondary,
     textAlign: 'center',
+  },
+  captionBar: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  captionInput: {
+    fontFamily: typography.serif,
+    fontStyle: 'italic',
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
+    paddingVertical: spacing.sm,
   },
   bottomBar: {
     flexDirection: 'row',
