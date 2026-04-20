@@ -64,7 +64,7 @@ export default function OutfitReviewScreen() {
     setSaving(true);
     try {
       const imageUrl = await uploadOutfitImage(imageUri, userId);
-      await Promise.all(
+      const results = await Promise.allSettled(
         confirmed.map((item) =>
           saveClosetItem({
             user_id: userId,
@@ -75,9 +75,17 @@ export default function OutfitReviewScreen() {
           })
         )
       );
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      if (failed > 0 && failed === confirmed.length) {
+        Alert.alert('Save failed', 'None of your items could be saved. Please try again.');
+        return;
+      }
+      if (failed > 0) {
+        Alert.alert('Partially saved', `${confirmed.length - failed} of ${confirmed.length} items saved.`);
+      }
       router.replace('/outfit/success');
     } catch {
-      Alert.alert('Save failed', 'Something went wrong. Please try again.');
+      Alert.alert('Save failed', 'Something went wrong uploading your photo. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -111,8 +119,8 @@ export default function OutfitReviewScreen() {
               </View>
             ) : null}
             <Text style={styles.sectionIntro}>
-              Claude found <Text style={styles.sectionIntroAccent}>{items.length}</Text>{' '}
-              {items.length === 1 ? 'piece' : 'pieces'}. Refine the details or dismiss
+              <Text style={styles.sectionIntroAccent}>{items.length}</Text>{' '}
+              {items.length === 1 ? 'piece' : 'pieces'} detected. Refine the details or dismiss
               anything out of place.
             </Text>
           </View>
