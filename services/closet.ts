@@ -26,6 +26,13 @@ export async function fetchCloset(userId: string): Promise<ClosetItem[]> {
 }
 
 export async function deleteClosetItem(itemId: string): Promise<void> {
+  const { error: outfitItemsError } = await supabase
+    .from('outfit_items')
+    .delete()
+    .eq('closet_item_id', itemId);
+
+  if (outfitItemsError) throw outfitItemsError;
+
   const { error } = await supabase
     .from('closet_items')
     .delete()

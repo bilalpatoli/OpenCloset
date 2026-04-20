@@ -56,6 +56,22 @@ export async function fetchFeed(): Promise<OutfitPostWithItems[]> {
   }));
 }
 
+export async function deleteOutfitPost(postId: string): Promise<void> {
+  const { error: itemsError } = await supabase
+    .from('outfit_items')
+    .delete()
+    .eq('outfit_post_id', postId);
+
+  if (itemsError) throw itemsError;
+
+  const { error } = await supabase
+    .from('outfit_posts')
+    .delete()
+    .eq('id', postId);
+
+  if (error) throw error;
+}
+
 export async function fetchOutfitsByUser(userId: string): Promise<OutfitPostWithItems[]> {
   const { data, error } = await supabase
     .from('outfit_posts')
