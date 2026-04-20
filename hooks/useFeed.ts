@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchFeed } from '../services/outfits';
+import { fetchFeed, deleteOutfitPost } from '../services/outfits';
 import type { OutfitPostWithItems } from '../types/outfit';
 
 export function useFeed() {
@@ -9,5 +9,15 @@ export function useFeed() {
     fetchFeed().then(setOutfits).catch(console.error);
   }, []);
 
-  return { outfits };
+  async function deleteOutfit(postId: string): Promise<void> {
+    setOutfits((prev) => prev.filter((o) => o.id !== postId));
+    try {
+      await deleteOutfitPost(postId);
+    } catch (err) {
+      fetchFeed().then(setOutfits).catch(console.error);
+      throw err;
+    }
+  }
+
+  return { outfits, deleteOutfit };
 }

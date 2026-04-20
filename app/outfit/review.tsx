@@ -89,8 +89,9 @@ export default function OutfitReviewScreen() {
         .map((r) => r.value.id);
       await createOutfitPost({ user_id: userId, image_url: imageUrl, caption: undefined }, savedIds);
       router.replace('/outfit/success');
-    } catch {
-      Alert.alert('Save failed', 'Something went wrong uploading your photo. Please try again.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Something went wrong uploading your photo. Please try again.';
+      Alert.alert('Save failed', msg);
     } finally {
       setSaving(false);
     }

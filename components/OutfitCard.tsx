@@ -9,6 +9,7 @@ interface OutfitCardProps {
   outfit: OutfitPostWithItems;
   index?: number;
   onPress?: () => void;
+  onDelete?: () => void;
 }
 
 function formatRelative(iso: string): string {
@@ -25,7 +26,7 @@ function formatRelative(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
-export default function OutfitCard({ outfit, index, onPress }: OutfitCardProps) {
+export default function OutfitCard({ outfit, index, onPress, onDelete }: OutfitCardProps) {
   const username = outfit.user?.username ?? 'anonymous';
   const initial = username.charAt(0).toUpperCase();
   const itemCount = outfit.items?.length ?? 0;
@@ -47,11 +48,18 @@ export default function OutfitCard({ outfit, index, onPress }: OutfitCardProps) 
             <Text style={styles.meta}>{formatRelative(outfit.created_at)}</Text>
           </View>
         </View>
-        {typeof index === 'number' && (
-          <Text style={styles.indexMark}>
-            {String(index + 1).padStart(2, '0')}
-          </Text>
-        )}
+        <View style={styles.headerRight}>
+          {typeof index === 'number' && (
+            <Text style={styles.indexMark}>
+              {String(index + 1).padStart(2, '0')}
+            </Text>
+          )}
+          {onDelete && (
+            <TouchableOpacity onPress={onDelete} hitSlop={8} style={styles.deleteBtn}>
+              <Ionicons name="trash-outline" size={15} color={colors.textTertiary} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <View style={styles.imageFrame}>
@@ -103,6 +111,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  deleteBtn: { padding: 4 },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   avatar: {
     width: 36,

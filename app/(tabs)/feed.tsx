@@ -5,7 +5,7 @@ import {
   FlatList,
   StyleSheet,
   RefreshControl,
-  ActivityIndicator,
+  Alert,
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,10 +14,12 @@ import { useRouter } from 'expo-router';
 import Header from '../../components/Header';
 import OutfitCard from '../../components/OutfitCard';
 import { useFeed } from '../../hooks/useFeed';
+import { useAuth } from '../../hooks/useAuth';
 import { colors, spacing, typography } from '../../utils/theme';
 
 export default function FeedScreen() {
-  const { outfits } = useFeed();
+  const { outfits, deleteOutfit } = useFeed();
+  const { userId } = useAuth();
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -44,7 +46,27 @@ export default function FeedScreen() {
         keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => (
           <View style={styles.cardWrapper}>
-            <OutfitCard outfit={item} index={index} />
+            <OutfitCard
+              outfit={item}
+              index={index}
+              onDelete={item.user_id === userId ? () => {
+                Alert.alert(
+                  'Remove this look?',
+                  'It will be deleted from the feed.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Remove',
+                      style: 'destructive',
+                      onPress: () =>
+                        deleteOutfit(item.id).catch(() =>
+                          Alert.alert('Error', 'Could not delete this look.')
+                        ),
+                    },
+                  ]
+                );
+              } : undefined}
+            />
           </View>
         )}
         contentContainerStyle={styles.list}
