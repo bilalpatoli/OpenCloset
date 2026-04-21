@@ -98,9 +98,11 @@ export default function ProfileScreen() {
       <View style={styles.pageHeader}>
         <View style={styles.pageHeaderRow}>
           <TouchableOpacity hitSlop={10} style={styles.iconBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={20} color={colors.text} />
+            <Ionicons name="chevron-back" size={22} color={colors.text} />
           </TouchableOpacity>
-          <Text style={styles.pageIndex}>{username ? `@${username}` : 'Profile'}</Text>
+          <View style={styles.pageIndexContainer} pointerEvents="none">
+            <Text style={styles.pageIndex}>{username ? `@${username}` : 'Profile'}</Text>
+          </View>
           <View style={styles.pageHeaderPlaceholder} />
         </View>
       </View>
@@ -120,18 +122,22 @@ export default function ProfileScreen() {
               <Text style={styles.statValue}>{outfits.length}</Text>
               <Text style={styles.statLabel}>Posts</Text>
             </View>
-            <View style={styles.statCol}>
-              <Text style={styles.statValue}>{closetItems.length}</Text>
-              <Text style={styles.statLabel}>Pieces</Text>
-            </View>
-            <View style={styles.statCol}>
+            <TouchableOpacity
+              style={styles.statCol}
+              activeOpacity={0.7}
+              onPress={() => router.push({ pathname: '/follows/[userId]', params: { userId, type: 'followers' } })}
+            >
               <Text style={styles.statValue}>{followCounts.followers}</Text>
               <Text style={styles.statLabel}>Followers</Text>
-            </View>
-            <View style={styles.statCol}>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.statCol}
+              activeOpacity={0.7}
+              onPress={() => router.push({ pathname: '/follows/[userId]', params: { userId, type: 'following' } })}
+            >
               <Text style={styles.statValue}>{followCounts.following}</Text>
               <Text style={styles.statLabel}>Following</Text>
-            </View>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -254,8 +260,13 @@ export default function ProfileScreen() {
 }
 
 function PostTile({ outfit }: { outfit: OutfitPostWithItems }) {
+  const router = useRouter();
   return (
-    <TouchableOpacity style={styles.postTile} activeOpacity={0.9}>
+    <TouchableOpacity
+      style={styles.postTile}
+      activeOpacity={0.9}
+      onPress={() => router.push(`/outfit/${outfit.id}`)}
+    >
       {outfit.image_url ? (
         <Image source={{ uri: outfit.image_url }} style={styles.postImg} />
       ) : (
@@ -301,15 +312,15 @@ const styles = StyleSheet.create({
   pageHeader: { paddingHorizontal: spacing.xl, paddingTop: spacing.md, paddingBottom: spacing.sm },
   pageHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 36 },
   pageHeaderPlaceholder: { width: 36, height: 36 },
+  pageIndexContainer: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
   pageIndex: {
-    position: 'absolute', left: 0, right: 0, textAlign: 'center',
+    textAlign: 'center',
     fontFamily: typography.serif, fontStyle: 'italic', fontSize: 13,
     color: colors.accent, letterSpacing: 1.5,
   },
   iconBtn: {
-    width: 36, height: 36, borderRadius: 999, backgroundColor: colors.surface,
+    width: 36, height: 36,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border,
   },
   profileRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xs, gap: spacing.xl },
   avatar: { width: 80, height: 80, borderRadius: 999, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },

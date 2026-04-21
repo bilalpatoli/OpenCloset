@@ -131,6 +131,31 @@ export async function fetchFollowingFeed(
   return { posts, hasMore: posts.length === limit };
 }
 
+export async function fetchOutfitPost(postId: string): Promise<OutfitPostWithItems> {
+  const { data, error } = await supabase
+    .from('outfit_posts')
+    .select(`
+      *,
+      user:users(username, avatar_url),
+      outfit_items(closet_item:closet_items(*))
+    `)
+    .eq('id', postId)
+    .is('deleted_at', null)
+    .single();
+
+  if (error) throw error;
+
+  const post = flattenPost(data);
+  const [commentCounts, likeCounts] = await Promise.all([
+    fetchCommentCounts([postId]).catch(() => ({} as Record<string, number>)),
+    fetchLikeCounts([postId]).catch(() => ({} as Record<string, number>)),
+  ]);
+  post.comment_count = commentCounts[postId] ?? 0;
+  post.like_count = likeCounts[postId] ?? 0;
+
+  return post;
+}
+
 export async function deleteOutfitPost(postId: string): Promise<void> {
   const { error } = await supabase.rpc('soft_delete_outfit_post', { post_id: postId });
   if (error) throw error;

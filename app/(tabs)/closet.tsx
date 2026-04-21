@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useCloset } from '../../hooks/useCloset';
+import { useFollow } from '../../hooks/useFollow';
 import { fetchUserProfile, updateUserProfile } from '../../services/users';
 import { fetchOutfitsByUser } from '../../services/outfits';
 import { uploadAvatarImage } from '../../services/storage';
@@ -38,6 +39,7 @@ type Tab = 'posts' | 'wardrobe';
 export default function ClosetScreen() {
   const { userId, loading } = useAuth();
   const { items, refetch } = useCloset(userId);
+  const { counts: followCounts } = useFollow(userId ?? undefined, userId ?? undefined);
 
   useFocusEffect(useCallback(() => {
     refetch();
@@ -148,16 +150,22 @@ export default function ClosetScreen() {
               <Text style={styles.statValue}>{outfits.length}</Text>
               <Text style={styles.statLabel}>Posts</Text>
             </View>
-            <View style={styles.statCol}>
-              <Text style={styles.statValue}>{items.length}</Text>
-              <Text style={styles.statLabel}>Pieces</Text>
-            </View>
-            <View style={styles.statCol}>
-              <Text style={styles.statValue}>
-                {outfits.filter((o) => o.items.length > 0).length}
-              </Text>
-              <Text style={styles.statLabel}>Looks</Text>
-            </View>
+            <TouchableOpacity
+              style={styles.statCol}
+              activeOpacity={0.7}
+              onPress={() => userId && router.push({ pathname: '/follows/[userId]', params: { userId, type: 'followers' } })}
+            >
+              <Text style={styles.statValue}>{followCounts.followers}</Text>
+              <Text style={styles.statLabel}>Followers</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.statCol}
+              activeOpacity={0.7}
+              onPress={() => userId && router.push({ pathname: '/follows/[userId]', params: { userId, type: 'following' } })}
+            >
+              <Text style={styles.statValue}>{followCounts.following}</Text>
+              <Text style={styles.statLabel}>Following</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -283,8 +291,13 @@ export default function ClosetScreen() {
 }
 
 function PostTile({ outfit }: { outfit: OutfitPostWithItems }) {
+  const router = useRouter();
   return (
-    <TouchableOpacity style={styles.postTile} activeOpacity={0.9}>
+    <TouchableOpacity
+      style={styles.postTile}
+      activeOpacity={0.9}
+      onPress={() => router.push(`/outfit/${outfit.id}`)}
+    >
       {outfit.image_url ? (
         <Image source={{ uri: outfit.image_url }} style={styles.postImg} />
       ) : (
