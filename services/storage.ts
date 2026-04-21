@@ -28,6 +28,35 @@ function decodeBase64(base64: string): Uint8Array {
   return bytes;
 }
 
+export async function uploadAvatarImage(base64: string, mimeType: string, userId: string): Promise<string> {
+  const ext = mimeType === 'image/png' ? 'png' : mimeType === 'image/webp' ? 'webp' : 'jpg';
+  const fileName = `${userId}/avatar/${Date.now()}.${ext}`;
+  const bytes = decodeBase64(base64);
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('Not authenticated.');
+
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+  const res = await fetch(`${supabaseUrl}/storage/v1/object/${BUCKET}/${fileName}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type': mimeType,
+      'apikey': anonKey!,
+    },
+    body: bytes.buffer as ArrayBuffer,
+  });
+
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`Avatar upload failed (${res.status}): ${msg}`);
+  }
+
+  return `${supabaseUrl}/storage/v1/object/public/${BUCKET}/${fileName}`;
+}
+
 export async function uploadOutfitImage(localUri: string, userId: string): Promise<string> {
   const ext = localUri.split('.').pop()?.toLowerCase() ?? 'jpg';
   const contentType = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
