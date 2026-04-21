@@ -125,6 +125,18 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      {(profile?.bio || profile?.location) && (
+        <View style={styles.profileMeta}>
+          {profile?.bio ? <Text style={styles.bioText}>{profile.bio}</Text> : null}
+          {profile?.location ? (
+            <View style={styles.locationRow}>
+              <Ionicons name="location-outline" size={12} color={colors.textSecondary} />
+              <Text style={styles.locationText}>{profile.location}</Text>
+            </View>
+          ) : null}
+        </View>
+      )}
+
       <View style={styles.tabBar}>
         <TouchableOpacity
           style={[styles.tabItem, activeTab === 'posts' && styles.tabItemActive]}
@@ -370,6 +382,29 @@ const styles = StyleSheet.create({
   statLabel: {
     fontFamily: typography.body,
     fontSize: 11,
+    color: colors.textSecondary,
+  },
+
+  profileMeta: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  bioText: {
+    fontFamily: typography.body,
+    fontSize: 13,
+    color: colors.text,
+    lineHeight: 18,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  locationText: {
+    fontFamily: typography.body,
+    fontSize: 12,
     color: colors.textSecondary,
   },
 

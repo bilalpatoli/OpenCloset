@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -14,13 +14,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useCloset } from '../../hooks/useCloset';
 import { fetchUserProfile, updateUserProfile } from '../../services/users';
 import { fetchOutfitsByUser } from '../../services/outfits';
 import { uploadAvatarImage } from '../../services/storage';
-import { logout } from '../../services/auth';
+
 import { CLOTHING_CATEGORIES, type ClothingCategory } from '../../utils/constants';
 import { colors, radius, spacing, typography } from '../../utils/theme';
 import type { UserProfile } from '../../types/user';
@@ -37,7 +37,9 @@ type Tab = 'posts' | 'wardrobe';
 
 export default function ClosetScreen() {
   const { userId, loading } = useAuth();
-  const { items } = useCloset(userId);
+  const { items, refetch } = useCloset(userId);
+
+  useFocusEffect(useCallback(() => { refetch(); }, [refetch]));
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>('all');
   const [activeTab, setActiveTab] = useState<Tab>('posts');
@@ -88,23 +90,6 @@ export default function ClosetScreen() {
     }
   }
 
-  async function handleLogout() {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await logout();
-            router.replace('/auth/login');
-          } catch {
-            Alert.alert('Error', 'Could not sign out. Please try again.');
-          }
-        },
-      },
-    ]);
-  }
 
   if (loading) {
     return (
@@ -135,9 +120,9 @@ export default function ClosetScreen() {
             <TouchableOpacity
               hitSlop={10}
               style={styles.iconBtn}
-              onPress={handleLogout}
+              onPress={() => router.push('/settings')}
             >
-              <Ionicons name="log-out-outline" size={20} color={colors.text} />
+              <Ionicons name="menu-outline" size={22} color={colors.text} />
             </TouchableOpacity>
           </View>
         </View>
@@ -176,6 +161,18 @@ export default function ClosetScreen() {
           </View>
         </View>
       </View>
+
+      {(profile?.bio || profile?.location) && (
+        <View style={styles.profileMeta}>
+          {profile?.bio ? <Text style={styles.bioText}>{profile.bio}</Text> : null}
+          {profile?.location ? (
+            <View style={styles.locationRow}>
+              <Ionicons name="location-outline" size={12} color={colors.textSecondary} />
+              <Text style={styles.locationText}>{profile.location}</Text>
+            </View>
+          ) : null}
+        </View>
+      )}
 
       <View style={styles.tabBar}>
         <TouchableOpacity
@@ -446,6 +443,29 @@ const styles = StyleSheet.create({
   statLabel: {
     fontFamily: typography.body,
     fontSize: 11,
+    color: colors.textSecondary,
+  },
+
+  profileMeta: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  bioText: {
+    fontFamily: typography.body,
+    fontSize: 13,
+    color: colors.text,
+    lineHeight: 18,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  locationText: {
+    fontFamily: typography.body,
+    fontSize: 12,
     color: colors.textSecondary,
   },
 
