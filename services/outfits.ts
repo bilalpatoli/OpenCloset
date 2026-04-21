@@ -71,15 +71,8 @@ export async function fetchFeed(
   return { posts, hasMore: posts.length === limit };
 }
 
-export async function deleteOutfitPost(postId: string, userId?: string): Promise<void> {
-  let query = supabase
-    .from('outfit_posts')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', postId);
-
-  if (userId) query = query.eq('user_id', userId);
-
-  const { error } = await query;
+export async function deleteOutfitPost(postId: string): Promise<void> {
+  const { error } = await supabase.rpc('soft_delete_outfit_post', { post_id: postId });
   if (error) throw error;
 }
 

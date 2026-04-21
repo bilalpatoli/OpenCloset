@@ -45,10 +45,6 @@ export async function fetchCloset(
 }
 
 export async function deleteClosetItem(itemId: string): Promise<void> {
-  const { error } = await supabase
-    .from('closet_items')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', itemId);
-
+  const { error } = await supabase.rpc('soft_delete_closet_item', { item_id: itemId });
   if (error) throw error;
 }
