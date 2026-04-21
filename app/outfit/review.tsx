@@ -70,7 +70,7 @@ export default function OutfitReviewScreen() {
         confirmed.map((item) =>
           saveClosetItem({
             user_id: userId,
-            name: item.name,
+            name: item.name.trim(),
             category: item.category,
             color: item.color,
             image_url: imageUrl,
@@ -211,6 +211,7 @@ function ItemCard({
             onChangeText={(text) => onUpdate({ name: text })}
             editable={item.confirmed}
             placeholder="Item name"
+            maxLength={60}
             placeholderTextColor={colors.textTertiary}
           />
         </View>
