@@ -19,4 +19,6 @@ export interface OutfitItem {
 export interface OutfitPostWithItems extends OutfitPost {
   user: Pick<UserProfile, 'username' | 'avatar_url'>;
   items: ClosetItem[];
+  comment_count?: number;
+  like_count?: number;
 }
