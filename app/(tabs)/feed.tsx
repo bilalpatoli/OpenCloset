@@ -17,17 +17,24 @@ import { useFeed } from '../../hooks/useFeed';
 import { useAuth } from '../../hooks/useAuth';
 import { colors, spacing, typography } from '../../utils/theme';
 
+type FeedMode = 'forYou' | 'following';
+
 export default function FeedScreen() {
-  const { outfits, deleteOutfit } = useFeed();
   const { userId } = useAuth();
   const router = useRouter();
+  const [mode, setMode] = useState<FeedMode>('forYou');
   const [refreshing, setRefreshing] = useState(false);
+
+  const { outfits, deleteOutfit, refetch } = useFeed(mode, userId ?? undefined);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setRefreshing(false);
-  }, []);
+    try {
+      refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetch]);
 
   const headerRight = (
     <TouchableOpacity
@@ -39,6 +46,34 @@ export default function FeedScreen() {
     </TouchableOpacity>
   );
 
+  const TabSwitcher = (
+    <View style={styles.tabRow}>
+      <TouchableOpacity
+        style={[styles.tab, mode === 'forYou' && styles.tabActive]}
+        onPress={() => setMode('forYou')}
+        activeOpacity={0.8}
+      >
+        <Text style={[styles.tabLabel, mode === 'forYou' && styles.tabLabelActive]}>
+          For You
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.tab, mode === 'following' && styles.tabActive]}
+        onPress={() => setMode('following')}
+        activeOpacity={0.8}
+      >
+        <Text style={[styles.tabLabel, mode === 'following' && styles.tabLabelActive]}>
+          Following
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const emptyMessage =
+    mode === 'following'
+      ? 'Follow people to see their looks here.'
+      : 'Pull to refresh, or capture your first outfit from the Capture tab.';
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <FlatList
@@ -48,23 +83,27 @@ export default function FeedScreen() {
           <View style={styles.cardWrapper}>
             <OutfitCard
               outfit={item}
-              onDelete={item.user_id === userId ? () => {
-                Alert.alert(
-                  'Remove this look?',
-                  'It will be deleted from the feed.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Remove',
-                      style: 'destructive',
-                      onPress: () =>
-                        deleteOutfit(item.id).catch(() =>
-                          Alert.alert('Error', 'Could not delete this look.')
-                        ),
-                    },
-                  ]
-                );
-              } : undefined}
+              onDelete={
+                item.user_id === userId
+                  ? () => {
+                      Alert.alert(
+                        'Remove this look?',
+                        'It will be deleted from the feed.',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Remove',
+                            style: 'destructive',
+                            onPress: () =>
+                              deleteOutfit(item.id).catch(() =>
+                                Alert.alert('Error', 'Could not delete this look.')
+                              ),
+                          },
+                        ]
+                      );
+                    }
+                  : undefined
+              }
             />
           </View>
         )}
@@ -79,20 +118,18 @@ export default function FeedScreen() {
         }
         ListHeaderComponent={
           <View>
-            <Header
-              index="Feed"
-              right={headerRight}
-            />
+            <Header index="Feed" right={headerRight} />
+            {TabSwitcher}
           </View>
         }
         ListEmptyComponent={
-          outfits.length === 0 && !refreshing ? (
+          !refreshing ? (
             <View style={styles.empty}>
               <Ionicons name="sparkles-outline" size={28} color={colors.textTertiary} />
-              <Text style={styles.emptyTitle}>No looks yet</Text>
-              <Text style={styles.emptyBody}>
-                Pull to refresh, or capture your first outfit from the Capture tab.
+              <Text style={styles.emptyTitle}>
+                {mode === 'following' ? 'Nothing here yet' : 'No looks yet'}
               </Text>
+              <Text style={styles.emptyBody}>{emptyMessage}</Text>
             </View>
           ) : null
         }
@@ -123,6 +160,30 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
+
+  tabRow: {
+    flexDirection: 'row',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    marginBottom: spacing.lg,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1.5,
+    borderBottomColor: 'transparent',
+  },
+  tabActive: { borderBottomColor: colors.text },
+  tabLabel: {
+    fontFamily: typography.body,
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textTertiary,
+    letterSpacing: 0.3,
+  },
+  tabLabelActive: { color: colors.text },
+
   empty: {
     marginTop: spacing.xxxl,
     alignItems: 'center',

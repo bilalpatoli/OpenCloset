@@ -9,6 +9,7 @@ import {
   Image,
   Dimensions,
   FlatList,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +17,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { fetchUserProfile } from '../../services/users';
 import { fetchOutfitsByUser } from '../../services/outfits';
 import { fetchCloset } from '../../services/closet';
+import { useAuth } from '../../hooks/useAuth';
+import { useFollow } from '../../hooks/useFollow';
+import FollowButton from '../../components/FollowButton';
 import { CLOTHING_CATEGORIES, type ClothingCategory } from '../../utils/constants';
 import { colors, radius, spacing, typography } from '../../utils/theme';
 import type { UserProfile } from '../../types/user';
@@ -32,13 +36,22 @@ type Tab = 'posts' | 'wardrobe';
 
 export default function ProfileScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
+  const { userId: currentUserId } = useAuth();
   const router = useRouter();
+
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [outfits, setOutfits] = useState<OutfitPostWithItems[]>([]);
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>('all');
   const [activeTab, setActiveTab] = useState<Tab>('posts');
+
+  const { following, counts: followCounts, loading: followLoading, toggle } = useFollow(
+    userId,
+    currentUserId ?? undefined
+  );
+
+  const isSelf = !!currentUserId && currentUserId === userId;
 
   useEffect(() => {
     if (!userId) return;
@@ -115,12 +128,14 @@ export default function ProfileScreen() {
               <Text style={styles.statValue}>{closetItems.length}</Text>
               <Text style={styles.statLabel}>Pieces</Text>
             </View>
-            <View style={styles.statCol}>
-              <Text style={styles.statValue}>
-                {outfits.filter((o) => o.items.length > 0).length}
-              </Text>
-              <Text style={styles.statLabel}>Looks</Text>
-            </View>
+            <TouchableOpacity style={styles.statCol} activeOpacity={0.7}>
+              <Text style={styles.statValue}>{followCounts.followers}</Text>
+              <Text style={styles.statLabel}>Followers</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.statCol} activeOpacity={0.7}>
+              <Text style={styles.statValue}>{followCounts.following}</Text>
+              <Text style={styles.statLabel}>Following</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -134,6 +149,20 @@ export default function ProfileScreen() {
               <Text style={styles.locationText}>{profile.location}</Text>
             </View>
           ) : null}
+        </View>
+      )}
+
+      {!isSelf && (
+        <View style={styles.followRow}>
+          <FollowButton
+            following={following}
+            loading={followLoading}
+            onPress={() =>
+              toggle().catch(() =>
+                Alert.alert('Error', 'Could not update follow status.')
+              )
+            }
+          />
         </View>
       )}
 
@@ -375,13 +404,13 @@ const styles = StyleSheet.create({
   statCol: { alignItems: 'flex-start', gap: 2 },
   statValue: {
     fontFamily: typography.display,
-    fontSize: 20,
+    fontSize: 18,
     color: colors.text,
     letterSpacing: -0.5,
   },
   statLabel: {
     fontFamily: typography.body,
-    fontSize: 11,
+    fontSize: 10,
     color: colors.textSecondary,
   },
 
@@ -406,6 +435,12 @@ const styles = StyleSheet.create({
     fontFamily: typography.body,
     fontSize: 12,
     color: colors.textSecondary,
+  },
+
+  followRow: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
   },
 
   // Tab bar
