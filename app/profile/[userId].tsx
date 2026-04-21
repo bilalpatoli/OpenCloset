@@ -261,6 +261,7 @@ export default function ProfileScreen() {
 
 function PostTile({ outfit }: { outfit: OutfitPostWithItems }) {
   const router = useRouter();
+  const isVideo = outfit.media_type === 'video' && !!outfit.video_url;
   return (
     <TouchableOpacity
       style={styles.postTile}
@@ -272,6 +273,11 @@ function PostTile({ outfit }: { outfit: OutfitPostWithItems }) {
       ) : (
         <View style={styles.postFallback}>
           <Ionicons name="image-outline" size={18} color={colors.textTertiary} />
+        </View>
+      )}
+      {isVideo && (
+        <View style={styles.postVideoBadge}>
+          <Ionicons name="play" size={9} color="#fff" />
         </View>
       )}
     </TouchableOpacity>
@@ -351,9 +357,10 @@ const styles = StyleSheet.create({
   chipCountActive: { color: 'rgba(255,255,255,0.7)' },
   gridContent: { paddingBottom: spacing.xxxl },
   postRow: { gap: WARDROBE_GAP, paddingHorizontal: WARDROBE_PAD, marginBottom: WARDROBE_GAP },
-  postTile: { width: WARDROBE_TILE_WIDTH, borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+  postTile: { width: WARDROBE_TILE_WIDTH, borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, position: 'relative' },
   postImg: { width: '100%', aspectRatio: 1, resizeMode: 'cover' },
   postFallback: { width: '100%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center' },
+  postVideoBadge: { position: 'absolute', top: 6, right: 6, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(26,26,26,0.6)', alignItems: 'center', justifyContent: 'center' },
   wardrobeRow: { gap: WARDROBE_GAP, paddingHorizontal: WARDROBE_PAD, marginBottom: WARDROBE_GAP },
   wardrobeTile: { width: WARDROBE_TILE_WIDTH, gap: 6 },
   wardrobeImgWrap: { borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },

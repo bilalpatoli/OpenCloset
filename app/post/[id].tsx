@@ -13,6 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Header from '../../components/Header';
@@ -41,6 +42,11 @@ function formatRelative(iso: string): string {
   const days = Math.floor(hrs / 24);
   if (days < 7) return `${days}d ago`;
   return new Date(iso).toLocaleDateString();
+}
+
+function PostVideo({ uri, style }: { uri: string; style: any }) {
+  const player = useVideoPlayer(uri, (p) => { p.loop = true; p.muted = true; p.play(); });
+  return <VideoView player={player} style={style} contentFit="cover" nativeControls={false} />;
 }
 
 export default function PostDetailScreen() {
@@ -153,7 +159,11 @@ export default function PostDetailScreen() {
             post ? (
               <View>
                 <View style={styles.imageFrame}>
-                  <Image source={{ uri: post.image_url }} style={styles.image} />
+                  {post.media_type === 'video' && post.video_url ? (
+                    <PostVideo uri={post.video_url} style={styles.image} />
+                  ) : (
+                    <Image source={{ uri: post.image_url }} style={styles.image} />
+                  )}
                 </View>
 
                 <View style={styles.actionsRow}>

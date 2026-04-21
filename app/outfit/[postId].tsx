@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,6 +44,11 @@ function timeAgo(iso: string): string {
   const days = Math.floor(hrs / 24);
   if (days < 7) return `${days}d`;
   return new Date(iso).toLocaleDateString();
+}
+
+function PostVideo({ uri, style }: { uri: string; style: any }) {
+  const player = useVideoPlayer(uri, (p) => { p.loop = true; p.muted = true; p.play(); });
+  return <VideoView player={player} style={style} contentFit="cover" nativeControls={false} />;
 }
 
 function WardrobeItemCard({ item }: { item: ClosetItem }) {
@@ -219,9 +225,11 @@ export default function PostDetailScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Hero image */}
+          {/* Hero media */}
           <View style={styles.imageFrame}>
-            {post.image_url ? (
+            {post.media_type === 'video' && post.video_url ? (
+              <PostVideo uri={post.video_url} style={styles.image} />
+            ) : post.image_url ? (
               <Image source={{ uri: post.image_url }} style={styles.image} />
             ) : (
               <View style={[styles.image, styles.imagePlaceholder]}>
