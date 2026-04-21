@@ -283,8 +283,12 @@ export default function CameraScreen() {
       resetToCamera();
       router.replace('/outfit/success');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Something went wrong uploading your photo. Please try again.';
-      Alert.alert('Save failed', msg);
+      const msg = err instanceof Error
+        ? err.message
+        : (typeof err === 'object' && err !== null && 'message' in err)
+          ? String((err as any).message)
+          : String(err);
+      Alert.alert('Save failed', msg || 'Something went wrong. Please try again.');
     } finally {
       setSaving(false);
     }
