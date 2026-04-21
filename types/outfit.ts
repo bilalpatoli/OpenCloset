@@ -7,6 +7,8 @@ export interface OutfitPost {
   image_url: string;
   caption?: string;
   created_at: string;
+  media_type?: 'image' | 'video';
+  video_url?: string;
 }
 
 export interface OutfitItem {

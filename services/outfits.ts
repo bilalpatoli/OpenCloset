@@ -44,6 +44,8 @@ function flattenPost(post: any): OutfitPostWithItems {
     image_url: post.image_url,
     caption: post.caption,
     created_at: post.created_at,
+    media_type: post.media_type ?? 'image',
+    video_url: post.video_url ?? undefined,
     user: post.user,
     items: (post.outfit_items ?? [])
       .map((oi: any) => oi.closet_item as ClosetItem)

@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { uploadStore } from './uploadStore';
+import * as FileSystem from 'expo-file-system/legacy';
 
 const BUCKET = 'outfit-images';
 
@@ -87,6 +88,40 @@ export async function uploadOutfitImage(localUri: string, userId: string): Promi
   if (!res.ok) {
     const msg = await res.text();
     throw new Error(`Upload failed (${res.status}): ${msg}`);
+  }
+
+  return `${supabaseUrl}/storage/v1/object/public/${BUCKET}/${fileName}`;
+}
+
+export async function uploadOutfitVideo(localUri: string, userId: string): Promise<string> {
+  const ext = localUri.split('.').pop()?.toLowerCase() ?? 'mov';
+  const contentType = ext === 'mp4' ? 'video/mp4' : 'video/quicktime';
+  const fileName = `${userId}/videos/${Date.now()}.${ext}`;
+
+  const base64 = await FileSystem.readAsStringAsync(localUri, {
+    encoding: 'base64',
+  });
+  const bytes = decodeBase64(base64);
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('Not authenticated.');
+
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+  const res = await fetch(`${supabaseUrl}/storage/v1/object/${BUCKET}/${fileName}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type': contentType,
+      'apikey': anonKey!,
+    },
+    body: bytes.buffer as ArrayBuffer,
+  });
+
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`Video upload failed (${res.status}): ${msg}`);
   }
 
   return `${supabaseUrl}/storage/v1/object/public/${BUCKET}/${fileName}`;
