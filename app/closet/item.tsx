@@ -32,7 +32,7 @@ export default function ClosetItemScreen() {
   useEffect(() => {
     if (!userId || !id) return;
     fetchCloset(userId)
-      .then((items) => setItem(items.find((i) => i.id === id) ?? null))
+      .then(({ items }) => setItem(items.find((i) => i.id === id) ?? null))
       .catch(() => setItem(null))
       .finally(() => setLoading(false));
   }, [userId, id]);

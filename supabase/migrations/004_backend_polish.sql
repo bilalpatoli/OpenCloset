@@ -105,13 +105,6 @@ drop policy if exists "Closet items are publicly readable" on public.closet_item
 create policy "Closet items are publicly readable"
   on public.closet_items for select using (deleted_at is null);
 
--- Soft-delete update policies (users set deleted_at on their own rows)
-create policy "Users can soft delete own outfit posts"
-  on public.outfit_posts for update using (auth.uid() = user_id);
-
-create policy "Users can soft delete own closet items"
-  on public.closet_items for update using (auth.uid() = user_id);
-
 -- ============================================================
 -- INDEXES
 -- ============================================================
