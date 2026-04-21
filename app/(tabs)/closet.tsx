@@ -39,18 +39,18 @@ export default function ClosetScreen() {
   const { userId, loading } = useAuth();
   const { items, refetch } = useCloset(userId);
 
-  useFocusEffect(useCallback(() => { refetch(); }, [refetch]));
+  useFocusEffect(useCallback(() => {
+    refetch();
+    if (userId) {
+      fetchUserProfile(userId).then(setProfile).catch(console.error);
+      fetchOutfitsByUser(userId).then(({ posts }) => setOutfits(posts)).catch(console.error);
+    }
+  }, [refetch, userId]));
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>('all');
   const [activeTab, setActiveTab] = useState<Tab>('posts');
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [outfits, setOutfits] = useState<OutfitPostWithItems[]>([]);
-
-  useEffect(() => {
-    if (!userId) return;
-    fetchUserProfile(userId).then(setProfile).catch(console.error);
-    fetchOutfitsByUser(userId).then(({ posts }) => setOutfits(posts)).catch(console.error);
-  }, [userId]);
 
   const counts = useMemo(() => {
     const map: Record<string, number> = { all: items.length };
