@@ -124,7 +124,7 @@ export default function SearchScreen() {
             <TouchableOpacity
               style={styles.tile}
               activeOpacity={0.85}
-              onPress={() => router.push(`/profile/${item.user_id}`)}
+              onPress={() => router.push(`/outfit/${item.id}`)}
             >
               {item.image_url ? (
                 <Image source={{ uri: item.image_url }} style={styles.tileImg} />

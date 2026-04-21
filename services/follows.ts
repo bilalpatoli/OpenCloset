@@ -27,6 +27,24 @@ export async function isFollowing(followerId: string, followingId: string): Prom
   return !!data;
 }
 
+export async function getFollowers(userId: string): Promise<import('../types/user').UserProfile[]> {
+  const { data, error } = await supabase
+    .from('follows')
+    .select('users!follower_id(id, username, avatar_url, bio, location, created_at)')
+    .eq('following_id', userId);
+  if (error) throw error;
+  return (data ?? []).map((r: any) => r.users).filter(Boolean);
+}
+
+export async function getFollowing(userId: string): Promise<import('../types/user').UserProfile[]> {
+  const { data, error } = await supabase
+    .from('follows')
+    .select('users!following_id(id, username, avatar_url, bio, location, created_at)')
+    .eq('follower_id', userId);
+  if (error) throw error;
+  return (data ?? []).map((r: any) => r.users).filter(Boolean);
+}
+
 export async function getFollowCounts(
   userId: string
 ): Promise<{ followers: number; following: number }> {

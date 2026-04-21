@@ -18,6 +18,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="auth/login" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="auth/signup" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="outfit/[postId]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="outfit/review" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="outfit/success" options={{ animation: 'fade' }} />
         <Stack.Screen name="closet/item" options={{ animation: 'slide_from_right' }} />

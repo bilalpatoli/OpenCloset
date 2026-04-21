@@ -140,6 +140,7 @@ export default function FeedScreen() {
               commentCount={getCommentCount(item.id, item.comment_count)}
               likeCount={getLikeCount(item.id, item.like_count)}
               liked={likedPosts.has(item.id)}
+              onPress={() => router.push(`/outfit/${item.id}`)}
               onLikePress={() => handleLikePress(item.id)}
               onCommentPress={() => setActivePostId(item.id)}
               onDelete={
