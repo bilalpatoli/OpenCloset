@@ -9,7 +9,7 @@ export function useCloset(userId: string | null) {
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(0);
 
-  useEffect(() => {
+  const refetch = useCallback(() => {
     if (!userId) return;
     fetchCloset(userId, { limit: PAGE_SIZE, offset: 0 })
       .then(({ items: fetched, hasMore: more }) => {
@@ -19,6 +19,10 @@ export function useCloset(userId: string | null) {
       })
       .catch(console.error);
   }, [userId]);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
 
   const loadMore = useCallback(() => {
     if (!userId || !hasMore) return;
@@ -31,5 +35,5 @@ export function useCloset(userId: string | null) {
       .catch(console.error);
   }, [userId, hasMore, offset]);
 
-  return { items, hasMore, loadMore };
+  return { items, hasMore, loadMore, refetch };
 }
