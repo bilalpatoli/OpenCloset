@@ -8,11 +8,11 @@ import {
   ActivityIndicator,
   Image,
   Dimensions,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import ClosetGrid from '../../components/ClosetGrid';
 import { fetchUserProfile } from '../../services/users';
 import { fetchOutfitsByUser } from '../../services/outfits';
 import { fetchCloset } from '../../services/closet';
@@ -23,9 +23,12 @@ import type { OutfitPostWithItems } from '../../types/outfit';
 import type { ClosetItem } from '../../types/closet';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const LOOK_ITEM_WIDTH = (SCREEN_WIDTH - spacing.lg * 2 - spacing.sm) / 2;
+const WARDROBE_PAD = spacing.lg;
+const WARDROBE_GAP = spacing.sm;
+const WARDROBE_TILE_WIDTH = (SCREEN_WIDTH - WARDROBE_PAD * 2 - WARDROBE_GAP * 2) / 3;
 
 type Filter = 'all' | ClothingCategory;
+type Tab = 'posts' | 'wardrobe';
 
 export default function ProfileScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
@@ -35,6 +38,7 @@ export default function ProfileScreen() {
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>('all');
+  const [activeTab, setActiveTab] = useState<Tab>('posts');
 
   useEffect(() => {
     if (!userId) return;
@@ -74,23 +78,24 @@ export default function ProfileScreen() {
 
   const username = profile?.username ?? 'unknown';
   const initial = username.charAt(0).toUpperCase() || '?';
-  const recentOutfits = outfits.slice(0, 6);
+  const listData: any[] = activeTab === 'posts' ? outfits : filtered;
 
   const HeaderBlock = (
     <View>
       <View style={styles.pageHeader}>
         <View style={styles.pageHeaderRow}>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
+          <TouchableOpacity
+            hitSlop={10}
+            style={styles.iconBtn}
+            onPress={() => router.back()}
+          >
             <Ionicons name="arrow-back" size={20} color={colors.text} />
           </TouchableOpacity>
-          <View style={styles.pageTitleOverlay} pointerEvents="none">
-            <Text style={styles.pageIndex}>Closet</Text>
-          </View>
-          <View style={styles.iconBtnPlaceholder} />
+          <Text style={styles.pageIndex}>{username ? `@${username}` : 'Profile'}</Text>
+          <View style={styles.pageHeaderPlaceholder} />
         </View>
       </View>
 
-      {/* Profile row */}
       <View style={styles.profileRow}>
         <View style={styles.avatar}>
           {profile?.avatar_url ? (
@@ -99,112 +104,155 @@ export default function ProfileScreen() {
             <Text style={styles.avatarInitial}>{initial}</Text>
           )}
         </View>
-        <View style={styles.profileInfo}>
-          {username ? <Text style={styles.username}>@{username}</Text> : null}
-        </View>
-      </View>
-
-      {/* Stats card */}
-      <View style={styles.summaryCard}>
-        <View style={styles.summaryCol}>
-          <Text style={styles.summaryValue}>
-            {String(closetItems.length).padStart(2, '0')}
-          </Text>
-          <Text style={styles.summaryLabel}>Pieces</Text>
-        </View>
-        <View style={styles.summaryDivider} />
-        <View style={styles.summaryCol}>
-          <Text style={styles.summaryValue}>
-            {String(outfits.length).padStart(2, '0')}
-          </Text>
-          <Text style={styles.summaryLabel}>Looks</Text>
-        </View>
-        <View style={styles.summaryDivider} />
-        <View style={styles.summaryCol}>
-          <Text style={styles.summaryValue}>
-            {String(Object.keys(counts).filter((k) => k !== 'all' && counts[k] > 0).length).padStart(2, '0')}
-          </Text>
-          <Text style={styles.summaryLabel}>Categories</Text>
-        </View>
-      </View>
-
-      {/* Recent Looks */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionLabel}>Recent looks</Text>
-        <View style={styles.sectionLine} />
-      </View>
-
-      {recentOutfits.length > 0 ? (
-        <View style={styles.looksGrid}>
-          {recentOutfits.map((outfit, idx) => (
-            <View key={outfit.id} style={[styles.lookCard, { width: LOOK_ITEM_WIDTH }]}>
-              <View style={styles.lookImgFrame}>
-                {outfit.image_url ? (
-                  <Image source={{ uri: outfit.image_url }} style={styles.lookImg} />
-                ) : (
-                  <View style={styles.lookFallback}>
-                    <Ionicons name="shirt-outline" size={24} color={colors.textTertiary} />
-                  </View>
-                )}
-                <Text style={styles.lookIndex}>
-                  {String(idx + 1).padStart(2, '0')}
-                </Text>
-              </View>
-              <Text style={styles.lookMeta}>
-                {outfit.items.length} {outfit.items.length === 1 ? 'piece' : 'pieces'}
-              </Text>
+        <View style={styles.statsContainer}>
+          {username ? <Text style={styles.profileName}>{username}</Text> : null}
+          <View style={styles.statsRow}>
+            <View style={styles.statCol}>
+              <Text style={styles.statValue}>{outfits.length}</Text>
+              <Text style={styles.statLabel}>Posts</Text>
             </View>
-          ))}
+            <View style={styles.statCol}>
+              <Text style={styles.statValue}>{closetItems.length}</Text>
+              <Text style={styles.statLabel}>Pieces</Text>
+            </View>
+            <View style={styles.statCol}>
+              <Text style={styles.statValue}>
+                {outfits.filter((o) => o.items.length > 0).length}
+              </Text>
+              <Text style={styles.statLabel}>Looks</Text>
+            </View>
+          </View>
         </View>
-      ) : (
-        <View style={styles.emptyLooks}>
-          <Ionicons name="image-outline" size={22} color={colors.textTertiary} />
-          <Text style={styles.emptyLooksText}>No looks yet</Text>
-        </View>
-      )}
-
-      {/* Wardrobe section */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionLabel}>Wardrobe</Text>
-        <View style={styles.sectionLine} />
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterRow}
-      >
-        <FilterChip
-          label="All"
-          count={counts.all}
-          active={filter === 'all'}
-          onPress={() => setFilter('all')}
-        />
-        {CLOTHING_CATEGORIES.map((cat) => (
-          <FilterChip
-            key={cat}
-            label={cat}
-            count={counts[cat] ?? 0}
-            active={filter === cat}
-            onPress={() => setFilter(cat)}
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={[styles.tabItem, activeTab === 'posts' && styles.tabItemActive]}
+          onPress={() => setActiveTab('posts')}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name={activeTab === 'posts' ? 'grid' : 'grid-outline'}
+            size={14}
+            color={activeTab === 'posts' ? colors.text : colors.textTertiary}
           />
-        ))}
-      </ScrollView>
+          <Text style={[styles.tabLabel, activeTab === 'posts' && styles.tabLabelActive]}>
+            Posts
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabItem, activeTab === 'wardrobe' && styles.tabItemActive]}
+          onPress={() => setActiveTab('wardrobe')}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name={activeTab === 'wardrobe' ? 'shirt' : 'shirt-outline'}
+            size={14}
+            color={activeTab === 'wardrobe' ? colors.text : colors.textTertiary}
+          />
+          <Text style={[styles.tabLabel, activeTab === 'wardrobe' && styles.tabLabelActive]}>
+            Wardrobe
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {activeTab === 'posts' && <View style={{ height: spacing.md }} />}
+      {activeTab === 'wardrobe' && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterRow}
+        >
+          <FilterChip
+            label="All"
+            count={counts.all}
+            active={filter === 'all'}
+            onPress={() => setFilter('all')}
+          />
+          {CLOTHING_CATEGORIES.map((cat) => (
+            <FilterChip
+              key={cat}
+              label={cat}
+              count={counts[cat] ?? 0}
+              active={filter === cat}
+              onPress={() => setFilter(cat)}
+            />
+          ))}
+        </ScrollView>
+      )}
     </View>
   );
 
+  const emptyMessage =
+    activeTab === 'posts'
+      ? `${username} hasn't posted any looks yet.`
+      : filter === 'all'
+      ? `${username}'s closet is empty.`
+      : `Nothing in ${filter} yet.`;
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ClosetGrid
-        items={filtered}
+      <FlatList
+        key={activeTab}
+        data={listData}
+        keyExtractor={(item) => item.id}
+        numColumns={3}
         ListHeaderComponent={HeaderBlock}
-        emptyMessage={
-          filter === 'all'
-            ? `${username}'s closet is empty.`
-            : `Nothing in ${filter} yet.`
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.gridContent}
+        columnWrapperStyle={activeTab === 'posts' ? styles.postRow : styles.wardrobeRow}
+        renderItem={({ item }) =>
+          activeTab === 'posts' ? (
+            <PostTile outfit={item as OutfitPostWithItems} />
+          ) : (
+            <WardrobeTile item={item as ClosetItem} />
+          )
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyCard}>
+            <Ionicons
+              name={activeTab === 'posts' ? 'image-outline' : 'shirt-outline'}
+              size={28}
+              color={colors.textTertiary}
+            />
+            <Text style={styles.emptyText}>{emptyMessage}</Text>
+          </View>
         }
       />
     </SafeAreaView>
+  );
+}
+
+function PostTile({ outfit }: { outfit: OutfitPostWithItems }) {
+  return (
+    <TouchableOpacity style={styles.postTile} activeOpacity={0.9}>
+      {outfit.image_url ? (
+        <Image source={{ uri: outfit.image_url }} style={styles.postImg} />
+      ) : (
+        <View style={styles.postFallback}>
+          <Ionicons name="image-outline" size={18} color={colors.textTertiary} />
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
+
+function WardrobeTile({ item }: { item: ClosetItem }) {
+  return (
+    <View style={styles.wardrobeTile}>
+      <View style={styles.wardrobeImgWrap}>
+        {item.image_url ? (
+          <Image source={{ uri: item.image_url }} style={styles.wardrobeImg} />
+        ) : (
+          <View style={styles.wardrobeFallback}>
+            <Ionicons name="shirt-outline" size={18} color={colors.textTertiary} />
+          </View>
+        )}
+      </View>
+      <Text style={styles.wardrobeName} numberOfLines={1}>
+        {item.name || item.category}
+      </Text>
+    </View>
   );
 }
 
@@ -225,9 +273,7 @@ function FilterChip({
       activeOpacity={0.8}
       onPress={onPress}
     >
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>
-        {label}
-      </Text>
+      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
       <Text style={[styles.chipCount, active && styles.chipCountActive]}>
         {String(count).padStart(2, '0')}
       </Text>
@@ -255,6 +301,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     height: 36,
   },
+  pageHeaderPlaceholder: { width: 36, height: 36 },
+  pageIndex: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontFamily: typography.serif,
+    fontStyle: 'italic',
+    fontSize: 13,
+    color: colors.accent,
+    letterSpacing: 1.5,
+  },
   iconBtn: {
     width: 36,
     height: 36,
@@ -265,26 +323,13 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  iconBtnPlaceholder: { width: 36 },
-  pageTitleOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pageIndex: {
-    fontFamily: typography.serif,
-    fontStyle: 'italic',
-    fontSize: 13,
-    color: colors.accent,
-    letterSpacing: 1.5,
-  },
   profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.lg,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
-    paddingBottom: spacing.lg,
+    paddingBottom: spacing.xs,
+    gap: spacing.xl,
   },
   avatar: {
     width: 80,
@@ -303,112 +348,64 @@ const styles = StyleSheet.create({
     fontSize: 32,
     color: colors.text,
   },
-  profileInfo: { flex: 1, gap: 6 },
-  username: {
+  statsContainer: { flex: 1, gap: spacing.sm },
+  profileName: {
     fontFamily: typography.display,
-    fontSize: 16,
+    fontSize: 15,
     color: colors.text,
     letterSpacing: -0.3,
   },
-  summaryCard: {
-    marginHorizontal: spacing.lg,
+  statsRow: {
     flexDirection: 'row',
-    backgroundColor: colors.white,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  summaryCol: { flex: 1, alignItems: 'center', gap: 4 },
-  summaryDivider: { width: StyleSheet.hairlineWidth, backgroundColor: colors.border },
-  summaryValue: {
+  statCol: { alignItems: 'flex-start', gap: 2 },
+  statValue: {
     fontFamily: typography.display,
-    fontSize: 28,
+    fontSize: 20,
     color: colors.text,
     letterSpacing: -0.5,
   },
-  summaryLabel: {
+  statLabel: {
     fontFamily: typography.body,
-    fontSize: 9.5,
-    letterSpacing: 1.6,
-    textTransform: 'uppercase',
+    fontSize: 11,
     color: colors.textSecondary,
   },
-  sectionHeader: {
+
+  // Tab bar
+  tabBar: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    marginTop: spacing.xl,
-    marginBottom: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    marginTop: spacing.md,
   },
-  sectionLabel: {
-    fontFamily: typography.body,
-    fontSize: 10,
-    letterSpacing: 1.8,
-    textTransform: 'uppercase',
-    color: colors.textSecondary,
-  },
-  sectionLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
-  looksGrid: {
+  tabItem: {
+    flex: 1,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: spacing.lg,
-    gap: spacing.sm,
-  },
-  lookCard: { gap: 8 },
-  lookImgFrame: {
-    borderRadius: radius.md,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    position: 'relative',
-  },
-  lookImg: { width: '100%', aspectRatio: 3 / 4, resizeMode: 'cover' },
-  lookFallback: {
-    width: '100%',
-    aspectRatio: 3 / 4,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1.5,
+    borderBottomColor: 'transparent',
   },
-  lookIndex: {
-    position: 'absolute',
-    top: 6,
-    right: 8,
-    fontFamily: typography.serif,
-    fontStyle: 'italic',
-    fontSize: 11,
-    color: colors.white,
-    backgroundColor: 'rgba(26,26,26,0.6)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: radius.pill,
-  },
-  lookMeta: {
+  tabItemActive: { borderBottomColor: colors.text },
+  tabLabel: {
     fontFamily: typography.body,
-    fontSize: 10.5,
-    letterSpacing: 1,
+    fontSize: 9.5,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
-    color: colors.textSecondary,
+    color: colors.textTertiary,
+    fontWeight: '600',
   },
-  emptyLooks: {
-    marginHorizontal: spacing.lg,
-    paddingVertical: spacing.xl,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  emptyLooksText: {
-    fontFamily: typography.serif,
-    fontStyle: 'italic',
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
+  tabLabelActive: { color: colors.text },
+
+  // Filter chips
   filterRow: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
     gap: spacing.sm,
   },
   chip: {
@@ -422,10 +419,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  chipActive: {
-    backgroundColor: colors.text,
-    borderColor: colors.text,
-  },
+  chipActive: { backgroundColor: colors.text, borderColor: colors.text },
   chipText: {
     fontFamily: typography.body,
     fontSize: 11,
@@ -442,4 +436,72 @@ const styles = StyleSheet.create({
     color: colors.accent,
   },
   chipCountActive: { color: 'rgba(255,255,255,0.7)' },
+
+  // Grid
+  gridContent: { paddingBottom: spacing.xxxl },
+  postRow: {
+    gap: WARDROBE_GAP,
+    paddingHorizontal: WARDROBE_PAD,
+    marginBottom: WARDROBE_GAP,
+  },
+  postTile: {
+    width: WARDROBE_TILE_WIDTH,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  postImg: { width: '100%', aspectRatio: 1, resizeMode: 'cover' },
+  postFallback: {
+    width: '100%',
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  wardrobeRow: {
+    gap: WARDROBE_GAP,
+    paddingHorizontal: WARDROBE_PAD,
+    marginBottom: WARDROBE_GAP,
+  },
+  wardrobeTile: { width: WARDROBE_TILE_WIDTH, gap: 6 },
+  wardrobeImgWrap: {
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  wardrobeImg: { width: '100%', aspectRatio: 1, resizeMode: 'cover' },
+  wardrobeFallback: {
+    width: '100%',
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+  },
+  wardrobeName: {
+    fontFamily: typography.body,
+    fontSize: 10.5,
+    color: colors.textSecondary,
+    letterSpacing: 0.3,
+  },
+
+  // Empty state
+  emptyCard: {
+    marginTop: spacing.xl,
+    marginHorizontal: spacing.lg,
+    paddingVertical: spacing.xxxl,
+    borderRadius: radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    gap: spacing.md,
+  },
+  emptyText: {
+    fontFamily: typography.serif,
+    fontStyle: 'italic',
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
 });

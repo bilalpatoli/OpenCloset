@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, Image, TouchableOpacity, StyleSheet, Modal, Alert, Pressable, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { colors, radius, spacing, typography } from '../utils/theme';
@@ -28,6 +28,9 @@ function formatRelative(iso: string): string {
 
 export default function OutfitCard({ outfit, onPress, onDelete }: OutfitCardProps) {
   const router = useRouter();
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
+  const menuBtnRef = useRef<View>(null);
   const username = outfit.user?.username ?? 'anonymous';
   const initial = username.charAt(0).toUpperCase();
   const itemCount = outfit.items?.length ?? 0;
@@ -35,6 +38,18 @@ export default function OutfitCard({ outfit, onPress, onDelete }: OutfitCardProp
 
   function handleUsernamePress() {
     router.push(`/profile/${outfit.user_id}`);
+  }
+
+  function handleDeletePress() {
+    setMenuVisible(false);
+    Alert.alert(
+      'Delete Outfit',
+      'Are you sure you want to delete this outfit?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: onDelete },
+      ]
+    );
   }
 
   return (
@@ -50,7 +65,11 @@ export default function OutfitCard({ outfit, onPress, onDelete }: OutfitCardProp
           onPress={handleUsernamePress}
         >
           <View style={styles.avatar}>
-            <Text style={styles.avatarInitial}>{initial}</Text>
+            {outfit.user?.avatar_url ? (
+              <Image source={{ uri: outfit.user.avatar_url }} style={styles.avatarImg} />
+            ) : (
+              <Text style={styles.avatarInitial}>{initial}</Text>
+            )}
           </View>
           <View>
             <Text style={styles.username}>@{username}</Text>
@@ -58,9 +77,36 @@ export default function OutfitCard({ outfit, onPress, onDelete }: OutfitCardProp
           </View>
         </TouchableOpacity>
         {onDelete && (
-          <TouchableOpacity onPress={onDelete} hitSlop={8} style={styles.deleteBtn}>
-            <Ionicons name="trash-outline" size={15} color={colors.textTertiary} />
-          </TouchableOpacity>
+          <View ref={menuBtnRef}>
+            <TouchableOpacity
+              onPress={() => {
+                menuBtnRef.current?.measure((_x, _y, width, height, pageX, pageY) => {
+                  const screenWidth = Dimensions.get('window').width;
+                  setMenuPos({ top: pageY + height + 4, right: screenWidth - (pageX + width) });
+                  setMenuVisible(true);
+                });
+              }}
+              hitSlop={8}
+              style={styles.menuBtn}
+            >
+              <Ionicons name="ellipsis-horizontal" size={18} color={colors.textTertiary} />
+            </TouchableOpacity>
+            <Modal
+              visible={menuVisible}
+              transparent
+              animationType="fade"
+              onRequestClose={() => setMenuVisible(false)}
+            >
+              <Pressable style={styles.menuOverlay} onPress={() => setMenuVisible(false)}>
+                <View style={[styles.menuPopup, { top: menuPos.top, right: menuPos.right }]}>
+                  <TouchableOpacity style={styles.menuItem} onPress={handleDeletePress}>
+                    <Ionicons name="trash-outline" size={16} color="#E53935" />
+                    <Text style={styles.menuItemText}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              </Pressable>
+            </Modal>
+          </View>
         )}
       </View>
 
@@ -115,6 +161,34 @@ const styles = StyleSheet.create({
   },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   deleteBtn: { padding: 4 },
+  menuBtn: { padding: 4 },
+  menuOverlay: { flex: 1 },
+  menuPopup: {
+    position: 'absolute',
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+    minWidth: 120,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  menuItemText: {
+    fontFamily: typography.body,
+    fontSize: 14,
+    color: '#E53935',
+    fontWeight: '500',
+  },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   avatar: {
     width: 36,
@@ -125,7 +199,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
+    overflow: 'hidden',
   },
+  avatarImg: { width: '100%', height: '100%', resizeMode: 'cover' },
   avatarInitial: {
     fontFamily: typography.display,
     fontSize: 16,

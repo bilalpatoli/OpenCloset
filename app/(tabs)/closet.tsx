@@ -13,11 +13,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useCloset } from '../../hooks/useCloset';
-import { fetchUserProfile } from '../../services/users';
+import { fetchUserProfile, updateUserProfile } from '../../services/users';
 import { fetchOutfitsByUser } from '../../services/outfits';
+import { uploadAvatarImage } from '../../services/storage';
 import { logout } from '../../services/auth';
 import { CLOTHING_CATEGORIES, type ClothingCategory } from '../../utils/constants';
 import { colors, radius, spacing, typography } from '../../utils/theme';
@@ -59,6 +61,32 @@ export default function ClosetScreen() {
     () => (filter === 'all' ? items : items.filter((i) => i.category === filter)),
     [items, filter]
   );
+
+  async function handleAvatarPress() {
+    const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!granted) {
+      Alert.alert('Permission required', 'Please allow photo library access to update your profile picture.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      base64: true,
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+    if (result.canceled || !result.assets[0]?.base64) return;
+    const asset = result.assets[0];
+    const mimeType = asset.mimeType ?? 'image/jpeg';
+    try {
+      const url = await uploadAvatarImage(asset.base64!, mimeType, userId!);
+      await updateUserProfile(userId!, { avatar_url: url });
+      setProfile((prev) => prev ? { ...prev, avatar_url: url } : prev);
+    } catch (err: any) {
+      console.error('[avatar upload]', err);
+      Alert.alert('Error', err?.message ?? 'Could not update profile picture. Please try again.');
+    }
+  }
 
   async function handleLogout() {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -116,29 +144,34 @@ export default function ClosetScreen() {
       </View>
 
       <View style={styles.profileRow}>
-        <View style={styles.avatar}>
-          {profile?.avatar_url ? (
-            <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} />
-          ) : (
-            <Text style={styles.avatarInitial}>{initial}</Text>
-          )}
-        </View>
+        <TouchableOpacity onPress={handleAvatarPress} activeOpacity={0.8}>
+          <View style={styles.avatar}>
+            {profile?.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} />
+            ) : (
+              <Text style={styles.avatarInitial}>{initial}</Text>
+            )}
+          </View>
+          <View style={styles.avatarEditBadge}>
+            <Ionicons name="camera" size={11} color={colors.white} />
+          </View>
+        </TouchableOpacity>
         <View style={styles.statsContainer}>
           {username ? <Text style={styles.profileName}>{username}</Text> : null}
           <View style={styles.statsRow}>
+            <View style={styles.statCol}>
+              <Text style={styles.statValue}>{outfits.length}</Text>
+              <Text style={styles.statLabel}>Posts</Text>
+            </View>
             <View style={styles.statCol}>
               <Text style={styles.statValue}>{items.length}</Text>
               <Text style={styles.statLabel}>Pieces</Text>
             </View>
             <View style={styles.statCol}>
-              <Text style={styles.statValue}>{outfits.length}</Text>
-              <Text style={styles.statLabel}>Looks</Text>
-            </View>
-            <View style={styles.statCol}>
               <Text style={styles.statValue}>
-                {Object.keys(counts).filter((k) => k !== 'all' && counts[k] > 0).length}
+                {outfits.filter((o) => o.items.length > 0).length}
               </Text>
-              <Text style={styles.statLabel}>Categories</Text>
+              <Text style={styles.statLabel}>Looks</Text>
             </View>
           </View>
         </View>
@@ -373,6 +406,19 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   avatarImg: { width: '100%', height: '100%' },
+  avatarEditBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 22,
+    height: 22,
+    borderRadius: 999,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.background,
+  },
   avatarInitial: {
     fontFamily: typography.display,
     fontSize: 32,
