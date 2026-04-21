@@ -16,6 +16,7 @@ import OutfitCard from '../../components/OutfitCard';
 import CommentsSheet from '../../components/CommentsSheet';
 import { useFeed } from '../../hooks/useFeed';
 import { useAuth } from '../../hooks/useAuth';
+import { useNotifications } from '../../hooks/useNotifications';
 import { fetchUserLikes, likePost, unlikePost } from '../../services/likes';
 import { colors, spacing, typography } from '../../utils/theme';
 
@@ -24,6 +25,7 @@ type FeedMode = 'forYou' | 'following';
 export default function FeedScreen() {
   const { userId } = useAuth();
   const router = useRouter();
+  const { unreadCount } = useNotifications(userId);
   const [mode, setMode] = useState<FeedMode>('forYou');
   const [refreshing, setRefreshing] = useState(false);
   const [activePostId, setActivePostId] = useState<string | null>(null);
@@ -99,9 +101,14 @@ export default function FeedScreen() {
     <TouchableOpacity
       hitSlop={10}
       style={styles.iconBtn}
-      onPress={() => router.push('/(tabs)/camera')}
+      onPress={() => router.push('/notifications')}
     >
-      <Ionicons name="add" size={22} color={colors.text} />
+      <Ionicons name="notifications-outline" size={22} color={colors.text} />
+      {unreadCount > 0 && (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : String(unreadCount)}</Text>
+        </View>
+      )}
     </TouchableOpacity>
   );
 
@@ -229,6 +236,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#E53935',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: colors.background,
+  },
+  badgeText: {
+    fontFamily: typography.body,
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#fff',
+    lineHeight: 12,
   },
   tabRow: {
     flexDirection: 'row',
