@@ -19,16 +19,20 @@ import { useAuth } from '../../hooks/useAuth';
 import { fetchUserLikes, likePost, unlikePost } from '../../services/likes';
 import { colors, spacing, typography } from '../../utils/theme';
 
+type FeedMode = 'forYou' | 'following';
+
 export default function FeedScreen() {
-  const { outfits, deleteOutfit } = useFeed();
   const { userId } = useAuth();
   const router = useRouter();
+  const [mode, setMode] = useState<FeedMode>('forYou');
   const [refreshing, setRefreshing] = useState(false);
   const [activePostId, setActivePostId] = useState<string | null>(null);
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const fetchedLikeIds = useRef<Set<string>>(new Set());
+
+  const { outfits, deleteOutfit, refetch } = useFeed(mode, userId ?? undefined);
 
   // Only fetch liked status for post IDs we haven't seen yet — never overwrite optimistic state
   React.useEffect(() => {
@@ -60,7 +64,6 @@ export default function FeedScreen() {
 
   function handleLikePress(postId: string) {
     const isLiked = likedPosts.has(postId);
-    // Optimistic update
     setLikedPosts((prev) => {
       const next = new Set(prev);
       isLiked ? next.delete(postId) : next.add(postId);
@@ -70,9 +73,7 @@ export default function FeedScreen() {
       const current = prev[postId] ?? outfits.find((o) => o.id === postId)?.like_count ?? 0;
       return { ...prev, [postId]: Math.max(0, current + (isLiked ? -1 : 1)) };
     });
-    // Persist
     (isLiked ? unlikePost(postId) : likePost(postId)).catch(() => {
-      // Revert on error
       setLikedPosts((prev) => {
         const next = new Set(prev);
         isLiked ? next.add(postId) : next.delete(postId);
@@ -87,9 +88,12 @@ export default function FeedScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setRefreshing(false);
-  }, []);
+    try {
+      refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetch]);
 
   const headerRight = (
     <TouchableOpacity
@@ -99,6 +103,29 @@ export default function FeedScreen() {
     >
       <Ionicons name="add" size={22} color={colors.text} />
     </TouchableOpacity>
+  );
+
+  const TabSwitcher = (
+    <View style={styles.tabRow}>
+      <TouchableOpacity
+        style={[styles.tab, mode === 'forYou' && styles.tabActive]}
+        onPress={() => setMode('forYou')}
+        activeOpacity={0.8}
+      >
+        <Text style={[styles.tabLabel, mode === 'forYou' && styles.tabLabelActive]}>
+          For You
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.tab, mode === 'following' && styles.tabActive]}
+        onPress={() => setMode('following')}
+        activeOpacity={0.8}
+      >
+        <Text style={[styles.tabLabel, mode === 'following' && styles.tabLabelActive]}>
+          Following
+        </Text>
+      </TouchableOpacity>
+    </View>
   );
 
   return (
@@ -115,23 +142,27 @@ export default function FeedScreen() {
               liked={likedPosts.has(item.id)}
               onLikePress={() => handleLikePress(item.id)}
               onCommentPress={() => setActivePostId(item.id)}
-              onDelete={item.user_id === userId ? () => {
-                Alert.alert(
-                  'Remove this look?',
-                  'It will be deleted from the feed.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Remove',
-                      style: 'destructive',
-                      onPress: () =>
-                        deleteOutfit(item.id).catch(() =>
-                          Alert.alert('Error', 'Could not delete this look.')
-                        ),
-                    },
-                  ]
-                );
-              } : undefined}
+              onDelete={
+                item.user_id === userId
+                  ? () => {
+                      Alert.alert(
+                        'Remove this look?',
+                        'It will be deleted from the feed.',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Remove',
+                            style: 'destructive',
+                            onPress: () =>
+                              deleteOutfit(item.id).catch(() =>
+                                Alert.alert('Error', 'Could not delete this look.')
+                              ),
+                          },
+                        ]
+                      );
+                    }
+                  : undefined
+              }
             />
           </View>
         )}
@@ -146,19 +177,21 @@ export default function FeedScreen() {
         }
         ListHeaderComponent={
           <View>
-            <Header
-              index="Feed"
-              right={headerRight}
-            />
+            <Header index="Feed" right={headerRight} />
+            {TabSwitcher}
           </View>
         }
         ListEmptyComponent={
-          outfits.length === 0 && !refreshing ? (
+          !refreshing ? (
             <View style={styles.empty}>
               <Ionicons name="sparkles-outline" size={28} color={colors.textTertiary} />
-              <Text style={styles.emptyTitle}>No looks yet</Text>
+              <Text style={styles.emptyTitle}>
+                {mode === 'following' ? 'Nothing here yet' : 'No looks yet'}
+              </Text>
               <Text style={styles.emptyBody}>
-                Pull to refresh, or capture your first outfit from the Capture tab.
+                {mode === 'following'
+                  ? 'Follow people to see their looks here.'
+                  : 'Pull to refresh, or capture your first outfit from the Capture tab.'}
               </Text>
             </View>
           ) : null
@@ -196,6 +229,28 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
+  tabRow: {
+    flexDirection: 'row',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    marginBottom: spacing.lg,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1.5,
+    borderBottomColor: 'transparent',
+  },
+  tabActive: { borderBottomColor: colors.text },
+  tabLabel: {
+    fontFamily: typography.body,
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textTertiary,
+    letterSpacing: 0.3,
+  },
+  tabLabelActive: { color: colors.text },
   empty: {
     marginTop: spacing.xxxl,
     alignItems: 'center',

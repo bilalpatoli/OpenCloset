@@ -84,6 +84,51 @@ export async function fetchFeed(
   return { posts, hasMore: posts.length === limit };
 }
 
+export async function fetchFollowingFeed(
+  userId: string,
+  options?: { limit?: number; offset?: number }
+): Promise<{ posts: OutfitPostWithItems[]; hasMore: boolean }> {
+  const limit = Math.min(options?.limit ?? 20, 50);
+  const offset = options?.offset ?? 0;
+
+  const { data: follows, error: followsError } = await supabase
+    .from('follows')
+    .select('following_id')
+    .eq('follower_id', userId);
+
+  if (followsError) throw followsError;
+
+  const followingIds = (follows ?? []).map((f: any) => f.following_id);
+  if (followingIds.length === 0) return { posts: [], hasMore: false };
+
+  const { data, error } = await supabase
+    .from('outfit_posts')
+    .select(`
+      *,
+      user:users(username, avatar_url),
+      outfit_items(closet_item:closet_items(*))
+    `)
+    .in('user_id', followingIds)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) throw error;
+
+  const posts = (data ?? []).map(flattenPost);
+
+  const postIds = posts.map((p) => p.id);
+  const [commentCounts, likeCounts] = await Promise.all([
+    fetchCommentCounts(postIds).catch(() => ({} as Record<string, number>)),
+    fetchLikeCounts(postIds).catch(() => ({} as Record<string, number>)),
+  ]);
+  for (const post of posts) {
+    post.comment_count = commentCounts[post.id] ?? 0;
+    post.like_count = likeCounts[post.id] ?? 0;
+  }
+
+  return { posts, hasMore: posts.length === limit };
+}
+
 export async function deleteOutfitPost(postId: string): Promise<void> {
   const { error } = await supabase.rpc('soft_delete_outfit_post', { post_id: postId });
   if (error) throw error;
