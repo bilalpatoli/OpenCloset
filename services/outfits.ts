@@ -6,6 +6,11 @@ export async function createOutfitPost(
   post: Omit<OutfitPost, 'id' | 'created_at'>,
   closetItemIds: string[]
 ): Promise<OutfitPost> {
+  if (!post.user_id) throw new Error('user_id is required');
+  if (!post.image_url) throw new Error('image_url is required');
+  if (post.caption && post.caption.length > 500) throw new Error('Caption cannot exceed 500 characters');
+  if (new Set(closetItemIds).size !== closetItemIds.length) throw new Error('Duplicate closet item IDs');
+
   const { data, error } = await supabase
     .from('outfit_posts')
     .insert(post)
@@ -30,20 +35,8 @@ export async function createOutfitPost(
   return data;
 }
 
-export async function fetchFeed(): Promise<OutfitPostWithItems[]> {
-  const { data, error } = await supabase
-    .from('outfit_posts')
-    .select(`
-      *,
-      user:users(username, avatar_url),
-      outfit_items(closet_item:closet_items(*))
-    `)
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-
-  // Flatten the nested outfit_items → closet_item shape
-  return (data ?? []).map((post: any) => ({
+function flattenPost(post: any): OutfitPostWithItems {
+  return {
     id: post.id,
     user_id: post.user_id,
     image_url: post.image_url,
@@ -53,26 +46,50 @@ export async function fetchFeed(): Promise<OutfitPostWithItems[]> {
     items: (post.outfit_items ?? [])
       .map((oi: any) => oi.closet_item as ClosetItem)
       .filter(Boolean),
-  }));
+  };
 }
 
-export async function deleteOutfitPost(postId: string): Promise<void> {
-  const { error: itemsError } = await supabase
-    .from('outfit_items')
-    .delete()
-    .eq('outfit_post_id', postId);
+export async function fetchFeed(
+  options?: { limit?: number; offset?: number }
+): Promise<{ posts: OutfitPostWithItems[]; hasMore: boolean }> {
+  const limit = Math.min(options?.limit ?? 20, 50);
+  const offset = options?.offset ?? 0;
 
-  if (itemsError) throw itemsError;
-
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('outfit_posts')
-    .delete()
+    .select(`
+      *,
+      user:users(username, avatar_url),
+      outfit_items(closet_item:closet_items(*))
+    `)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) throw error;
+
+  const posts = (data ?? []).map(flattenPost);
+  return { posts, hasMore: posts.length === limit };
+}
+
+export async function deleteOutfitPost(postId: string, userId?: string): Promise<void> {
+  let query = supabase
+    .from('outfit_posts')
+    .update({ deleted_at: new Date().toISOString() })
     .eq('id', postId);
 
+  if (userId) query = query.eq('user_id', userId);
+
+  const { error } = await query;
   if (error) throw error;
 }
 
-export async function fetchOutfitsByUser(userId: string): Promise<OutfitPostWithItems[]> {
+export async function fetchOutfitsByUser(
+  userId: string,
+  options?: { limit?: number; offset?: number }
+): Promise<{ posts: OutfitPostWithItems[]; hasMore: boolean }> {
+  const limit = Math.min(options?.limit ?? 20, 50);
+  const offset = options?.offset ?? 0;
+
   const { data, error } = await supabase
     .from('outfit_posts')
     .select(`
@@ -81,19 +98,11 @@ export async function fetchOutfitsByUser(userId: string): Promise<OutfitPostWith
       outfit_items(closet_item:closet_items(*))
     `)
     .eq('user_id', userId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
 
   if (error) throw error;
 
-  return (data ?? []).map((post: any) => ({
-    id: post.id,
-    user_id: post.user_id,
-    image_url: post.image_url,
-    caption: post.caption,
-    created_at: post.created_at,
-    user: post.user,
-    items: (post.outfit_items ?? [])
-      .map((oi: any) => oi.closet_item as ClosetItem)
-      .filter(Boolean),
-  }));
+  const posts = (data ?? []).map(flattenPost);
+  return { posts, hasMore: posts.length === limit };
 }
