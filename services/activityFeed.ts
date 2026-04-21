@@ -1,15 +1,15 @@
 import { supabase } from './supabase';
 
 export type ActivityItem =
-  | { type: 'follow'; id: string; created_at: string; actor: { id: string; username: string; avatar_url: string | null } }
-  | { type: 'like';   id: string; created_at: string; post_id: string; post_image_url?: string; actor: { id: string; username: string; avatar_url: string | null } }
+  | { type: 'follow';  id: string; created_at: string; actor: { id: string; username: string; avatar_url: string | null } }
+  | { type: 'like';    id: string; created_at: string; post_id: string; post_image_url?: string; actor: { id: string; username: string; avatar_url: string | null } }
   | { type: 'comment'; id: string; created_at: string; post_id: string; post_image_url?: string; body: string; actor: { id: string; username: string; avatar_url: string | null } };
 
 export async function fetchActivity(userId: string): Promise<ActivityItem[]> {
   const [followsRes, postsRes] = await Promise.all([
     supabase
       .from('follows')
-      .select('id, created_at, user:follower_id(id, username, avatar_url)')
+      .select('follower_id, created_at, user:users!follower_id(id, username, avatar_url)')
       .eq('following_id', userId)
       .neq('follower_id', userId)
       .order('created_at', { ascending: false })
@@ -23,7 +23,7 @@ export async function fetchActivity(userId: string): Promise<ActivityItem[]> {
 
   const follows: ActivityItem[] = (followsRes.data ?? []).map((r: any) => ({
     type: 'follow',
-    id: r.id,
+    id: `follow-${r.follower_id}`,
     created_at: r.created_at,
     actor: r.user,
   }));
@@ -38,15 +38,15 @@ export async function fetchActivity(userId: string): Promise<ActivityItem[]> {
 
   const [likesRes, commentsRes] = await Promise.all([
     supabase
-      .from('likes')
-      .select('id, created_at, post_id, user:user_id(id, username, avatar_url)')
+      .from('post_likes')
+      .select('post_id, user_id, created_at, user:users(id, username, avatar_url)')
       .in('post_id', postIds)
       .neq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(30),
     supabase
-      .from('comments')
-      .select('id, created_at, post_id, body, user:user_id(id, username, avatar_url)')
+      .from('post_comments')
+      .select('id, post_id, created_at, body, user:users(id, username, avatar_url)')
       .in('post_id', postIds)
       .neq('user_id', userId)
       .order('created_at', { ascending: false })
@@ -55,7 +55,7 @@ export async function fetchActivity(userId: string): Promise<ActivityItem[]> {
 
   const likes: ActivityItem[] = (likesRes.data ?? []).map((r: any) => ({
     type: 'like',
-    id: r.id,
+    id: `like-${r.post_id}-${r.user_id}`,
     created_at: r.created_at,
     post_id: r.post_id,
     post_image_url: postImageMap[r.post_id],
@@ -64,7 +64,7 @@ export async function fetchActivity(userId: string): Promise<ActivityItem[]> {
 
   const comments: ActivityItem[] = (commentsRes.data ?? []).map((r: any) => ({
     type: 'comment',
-    id: r.id,
+    id: `comment-${r.id}`,
     created_at: r.created_at,
     post_id: r.post_id,
     post_image_url: postImageMap[r.post_id],

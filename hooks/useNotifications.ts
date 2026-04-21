@@ -14,8 +14,8 @@ export function useNotifications(userId: string | null) {
       const data = await fetchActivity(userId);
       setItems(data);
       setUnreadCount(data.filter((n) => n.created_at > lastSeenRef.current).length);
-    } catch {
-      // silently fail — non-critical
+    } catch (err) {
+      console.error('[useNotifications]', err);
     } finally {
       setLoading(false);
     }
