@@ -12,23 +12,30 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  Animated,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as VideoThumbnails from 'expo-video-thumbnails';
+import * as FileSystem from 'expo-file-system/legacy';
+import { VideoView, useVideoPlayer } from 'expo-video';
+import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { analyzeOutfitImage, type DetectedItem } from '../../services/ai';
 import { saveClosetItem } from '../../services/closet';
 import { createOutfitPost } from '../../services/outfits';
-import { uploadOutfitImage } from '../../services/storage';
+import { uploadOutfitImage, uploadOutfitVideo } from '../../services/storage';
 import { uploadStore } from '../../services/uploadStore';
 import { useAuth } from '../../hooks/useAuth';
 import { CLOTHING_CATEGORIES, type ClothingCategory } from '../../utils/constants';
 import { colors, radius, spacing, typography } from '../../utils/theme';
 
+const VIDEO_MAX_DURATION = 3;
+
 type MediaType = 'image/jpeg' | 'image/png' | 'image/webp';
 type Phase = 'camera' | 'analyzing' | 'review';
+type CameraMode = 'photo' | 'video';
 
 interface EditableItem extends DetectedItem {
   key: string;
@@ -52,17 +59,24 @@ export default function CameraScreen() {
   const router = useRouter();
   const { userId } = useAuth();
   const [permission, requestPermission] = useCameraPermissions();
+  const [micPermission, requestMicPermission] = useMicrophonePermissions();
 
   const [phase, setPhase] = useState<Phase>('camera');
+  const [cameraMode, setCameraMode] = useState<CameraMode>('photo');
   const [facing, setFacing] = useState<'front' | 'back'>('back');
   const [zoomIdx, setZoomIdx] = useState(1);
   const [isCameraActive, setIsCameraActive] = useState(true);
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [videoUri, setVideoUri] = useState<string | null>(null);
   const [items, setItems] = useState<EditableItem[]>([]);
   const [caption, setCaption] = useState('');
   const [saving, setSaving] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const recordingProgress = useRef(new Animated.Value(0)).current;
+  const recordingAnimation = useRef<Animated.CompositeAnimation | null>(null);
 
   const cameraRef = useRef<CameraView>(null);
+  const thumbnailBase64Ref = useRef<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -110,9 +124,20 @@ export default function CameraScreen() {
       Alert.alert('Permission required', 'Please allow access to your photo library.');
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({ base64: true, quality: 0.8 });
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: cameraMode === 'video' ? 'videos' : 'images',
+      base64: cameraMode === 'photo',
+      quality: 0.8,
+      videoMaxDuration: VIDEO_MAX_DURATION,
+    });
     if (result.canceled || !result.assets[0]) return;
     const asset = result.assets[0];
+
+    if (asset.type === 'video') {
+      await processVideo(asset.uri);
+      return;
+    }
+
     if (!asset.base64) {
       Alert.alert('Error', 'Could not read image data. Please try again.');
       return;
@@ -131,8 +156,77 @@ export default function CameraScreen() {
   function resetToCamera() {
     setPhase('camera');
     setImageUri(null);
+    setVideoUri(null);
     setItems([]);
     setCaption('');
+    thumbnailBase64Ref.current = null;
+  }
+
+  async function startRecording() {
+    if (!cameraRef.current || isRecording) return;
+    if (!micPermission?.granted) {
+      const result = await requestMicPermission();
+      if (!result.granted) {
+        Alert.alert('Microphone required', 'Please allow microphone access to record video.');
+        return;
+      }
+    }
+    try {
+      setIsRecording(true);
+      recordingProgress.setValue(0);
+      recordingAnimation.current = Animated.timing(recordingProgress, {
+        toValue: 1,
+        duration: VIDEO_MAX_DURATION * 1000,
+        useNativeDriver: false,
+      });
+      recordingAnimation.current.start();
+
+      const video = await cameraRef.current.recordAsync({ maxDuration: VIDEO_MAX_DURATION });
+      setIsRecording(false);
+      recordingAnimation.current?.stop();
+      recordingProgress.setValue(0);
+
+      if (!video?.uri) {
+        Alert.alert('Error', 'Could not record video. Please try again.');
+        return;
+      }
+      await processVideo(video.uri);
+    } catch {
+      setIsRecording(false);
+      recordingAnimation.current?.stop();
+      recordingProgress.setValue(0);
+      Alert.alert('Error', 'Could not record video. Please try again.');
+    }
+  }
+
+  function stopRecording() {
+    if (!cameraRef.current || !isRecording) return;
+    cameraRef.current.stopRecording();
+  }
+
+  async function processVideo(uri: string) {
+    try {
+      // Try first frame, then 500ms as fallback
+      let thumbnailUri: string;
+      try {
+        const t = await VideoThumbnails.getThumbnailAsync(uri, { time: 0 });
+        thumbnailUri = t.uri;
+      } catch {
+        const t = await VideoThumbnails.getThumbnailAsync(uri, { time: 500 });
+        thumbnailUri = t.uri;
+      }
+
+      const base64 = await FileSystem.readAsStringAsync(thumbnailUri, {
+        encoding: 'base64',
+      });
+      thumbnailBase64Ref.current = base64;
+      uploadStore.set(base64, 'image/jpeg');
+      setVideoUri(uri);
+      await runAnalysis(thumbnailUri, base64, 'image/jpeg');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      Alert.alert('Error', `Could not process video: ${msg}`);
+    }
   }
 
   async function handleSave() {
@@ -148,7 +242,15 @@ export default function CameraScreen() {
 
     setSaving(true);
     try {
+      if (videoUri && thumbnailBase64Ref.current) {
+        uploadStore.set(thumbnailBase64Ref.current, 'image/jpeg');
+      }
       const imageUrl = await uploadOutfitImage(imageUri!, userId);
+      let videoUrl: string | undefined;
+      if (videoUri) {
+        videoUrl = await uploadOutfitVideo(videoUri, userId);
+      }
+
       const results = await Promise.allSettled(
         confirmed.map((item) =>
           saveClosetItem({
@@ -169,7 +271,13 @@ export default function CameraScreen() {
         .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof saveClosetItem>>> => r.status === 'fulfilled')
         .map((r) => r.value.id);
       await createOutfitPost(
-        { user_id: userId, image_url: imageUrl, caption: caption.trim() || undefined },
+        {
+          user_id: userId,
+          image_url: imageUrl,
+          caption: caption.trim() || undefined,
+          media_type: videoUri ? 'video' : 'image',
+          video_url: videoUrl,
+        },
         savedIds
       );
       resetToCamera();
@@ -208,6 +316,11 @@ export default function CameraScreen() {
 
   // ── Camera viewfinder ──────────────────────────────────────────────────────
   if (phase === 'camera') {
+    const progressWidth = recordingProgress.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0%', '100%'],
+    });
+
     return (
       <SafeAreaView style={styles.safeCamera} edges={['top']}>
         <CameraView
@@ -216,7 +329,15 @@ export default function CameraScreen() {
           facing={facing}
           zoom={ZOOM_LEVELS[zoomIdx].value}
           active={isCameraActive}
+          mode={cameraMode}
         >
+          {/* Recording progress bar */}
+          {isRecording && (
+            <View style={styles.recordingBarBg}>
+              <Animated.View style={[styles.recordingBarFill, { width: progressWidth }]} />
+            </View>
+          )}
+
           {/* Top bar */}
           <View style={styles.cameraTopBar}>
             <TouchableOpacity
@@ -226,6 +347,22 @@ export default function CameraScreen() {
             >
               <Ionicons name="camera-reverse-outline" size={26} color={colors.white} />
             </TouchableOpacity>
+          </View>
+
+          {/* Mode toggle */}
+          <View style={styles.modeToggle}>
+            {(['photo', 'video'] as CameraMode[]).map((m) => (
+              <TouchableOpacity
+                key={m}
+                style={[styles.modeBtn, cameraMode === m && styles.modeBtnActive]}
+                onPress={() => setCameraMode(m)}
+                hitSlop={8}
+              >
+                <Text style={[styles.modeBtnText, cameraMode === m && styles.modeBtnTextActive]}>
+                  {m === 'photo' ? 'Photo' : 'Video'}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
           {/* Zoom picker */}
@@ -247,13 +384,31 @@ export default function CameraScreen() {
           {/* Bottom bar */}
           <View style={styles.cameraBottomBar}>
             <TouchableOpacity style={styles.libraryBtn} onPress={pickFromLibrary} hitSlop={8}>
-              <Ionicons name="image-outline" size={22} color={colors.white} />
+              <Ionicons name={cameraMode === 'video' ? 'videocam-outline' : 'image-outline'} size={22} color={colors.white} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.shutterBtn} onPress={takePhoto} activeOpacity={0.75}>
-              <View style={styles.shutterRing}>
-                <View style={styles.shutterCore} />
-              </View>
-            </TouchableOpacity>
+
+            {cameraMode === 'photo' ? (
+              <TouchableOpacity style={styles.shutterBtn} onPress={takePhoto} activeOpacity={0.75}>
+                <View style={styles.shutterRing}>
+                  <View style={styles.shutterCore} />
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.shutterBtn}
+                onPress={isRecording ? stopRecording : startRecording}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.shutterRing, styles.shutterRingVideo]}>
+                  {isRecording ? (
+                    <View style={styles.stopSquare} />
+                  ) : (
+                    <View style={styles.recordDot} />
+                  )}
+                </View>
+              </TouchableOpacity>
+            )}
+
             <View style={{ width: 44 }} />
           </View>
         </CameraView>
@@ -294,9 +449,13 @@ export default function CameraScreen() {
           ListHeaderComponent={
             <View>
               <View style={styles.reviewHeader}>
-                {imageUri && (
+                {(imageUri || videoUri) && (
                   <View style={styles.thumbWrap}>
-                    <Image source={{ uri: imageUri }} style={styles.thumb} />
+                    {videoUri ? (
+                      <ReviewVideoThumb uri={videoUri} />
+                    ) : (
+                      <Image source={{ uri: imageUri! }} style={styles.thumb} />
+                    )}
                     <View style={styles.thumbBadge}>
                       <Text style={styles.thumbBadgeText}>{confirmedCount}/{items.length}</Text>
                     </View>
@@ -376,6 +535,15 @@ export default function CameraScreen() {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
+}
+
+function ReviewVideoThumb({ uri }: { uri: string }) {
+  const player = useVideoPlayer(uri, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.play();
+  });
+  return <VideoView player={player} style={styles.thumb} contentFit="cover" nativeControls={false} />;
 }
 
 function ItemCard({
@@ -508,7 +676,7 @@ const styles = StyleSheet.create({
   },
   zoomBar: {
     position: 'absolute',
-    bottom: 108,
+    bottom: 152,
     left: 0,
     right: 0,
     flexDirection: 'row',
@@ -565,11 +733,66 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  shutterRingVideo: {
+    borderColor: '#E53935',
+  },
   shutterCore: {
     width: 58,
     height: 58,
     borderRadius: 29,
     backgroundColor: colors.white,
+  },
+  recordDot: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#E53935',
+  },
+  stopSquare: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    backgroundColor: '#E53935',
+  },
+  modeToggle: {
+    position: 'absolute',
+    bottom: 104,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  modeBtn: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+  },
+  modeBtnActive: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  modeBtnText: {
+    fontFamily: typography.body,
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.55)',
+    letterSpacing: 0.5,
+  },
+  modeBtnTextActive: {
+    color: colors.white,
+  },
+  recordingBarBg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    zIndex: 10,
+  },
+  recordingBarFill: {
+    height: 3,
+    backgroundColor: '#E53935',
   },
 
   // Analyzing

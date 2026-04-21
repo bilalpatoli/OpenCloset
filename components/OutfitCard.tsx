@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, Modal, Alert, Pressable, Dimensions } from 'react-native';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { colors, radius, spacing, typography } from '../utils/theme';
@@ -31,6 +32,22 @@ function formatRelative(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
+function OutfitVideo({ uri }: { uri: string }) {
+  const player = useVideoPlayer(uri, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.play();
+  });
+  return (
+    <VideoView
+      player={player}
+      style={styles.image}
+      contentFit="cover"
+      nativeControls={false}
+    />
+  );
+}
+
 export default function OutfitCard({ outfit, commentCount, likeCount, liked, onPress, onDelete, onCommentPress, onLikePress }: OutfitCardProps) {
   const router = useRouter();
   const [menuVisible, setMenuVisible] = useState(false);
@@ -40,6 +57,7 @@ export default function OutfitCard({ outfit, commentCount, likeCount, liked, onP
   const initial = username.charAt(0).toUpperCase();
   const itemCount = outfit.items?.length ?? 0;
   const displayItems = (outfit.items ?? []).slice(0, 3);
+  const isVideo = outfit.media_type === 'video' && !!outfit.video_url;
 
   function handleUsernamePress() {
     router.push(`/profile/${outfit.user_id}`);
@@ -116,11 +134,18 @@ export default function OutfitCard({ outfit, commentCount, likeCount, liked, onP
       </View>
 
       <View style={styles.imageFrame}>
-        {outfit.image_url ? (
+        {isVideo ? (
+          <OutfitVideo uri={outfit.video_url!} />
+        ) : outfit.image_url ? (
           <Image source={{ uri: outfit.image_url }} style={styles.image} />
         ) : (
           <View style={[styles.image, styles.imagePlaceholder]}>
             <Ionicons name="shirt-outline" size={36} color={colors.textTertiary} />
+          </View>
+        )}
+        {isVideo && (
+          <View style={styles.videoBadge}>
+            <Ionicons name="play" size={10} color={colors.white} />
           </View>
         )}
         <View style={styles.imageBadge}>
@@ -265,6 +290,17 @@ const styles = StyleSheet.create({
   },
   image: { width: '100%', aspectRatio: 4 / 5, resizeMode: 'cover' },
   imagePlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  videoBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(26,26,26,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   imageBadge: {
     position: 'absolute',
     left: 12,
