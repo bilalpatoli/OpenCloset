@@ -8,8 +8,13 @@ import type { OutfitPostWithItems } from '../types/outfit';
 
 interface OutfitCardProps {
   outfit: OutfitPostWithItems;
+  commentCount?: number;
+  likeCount?: number;
+  liked?: boolean;
   onPress?: () => void;
   onDelete?: () => void;
+  onCommentPress?: () => void;
+  onLikePress?: () => void;
 }
 
 function formatRelative(iso: string): string {
@@ -26,7 +31,7 @@ function formatRelative(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
-export default function OutfitCard({ outfit, onPress, onDelete }: OutfitCardProps) {
+export default function OutfitCard({ outfit, commentCount, likeCount, liked, onPress, onDelete, onCommentPress, onLikePress }: OutfitCardProps) {
   const router = useRouter();
   const [menuVisible, setMenuVisible] = useState(false);
   const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
@@ -141,6 +146,30 @@ export default function OutfitCard({ outfit, onPress, onDelete }: OutfitCardProp
           )}
         </View>
       )}
+
+      <View style={styles.actionsRow}>
+        <TouchableOpacity style={styles.actionBtn} onPress={onLikePress} activeOpacity={0.7}>
+          <Ionicons
+            name={liked ? 'heart' : 'heart-outline'}
+            size={20}
+            color={liked ? '#E53935' : colors.textSecondary}
+          />
+          {(likeCount ?? outfit.like_count ?? 0) > 0 && (
+            <Text style={[styles.actionCount, liked && styles.actionCountLiked]}>
+              {likeCount ?? outfit.like_count}
+            </Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.actionBtn} onPress={onCommentPress} activeOpacity={0.7}>
+          <Ionicons name="chatbubble-outline" size={18} color={colors.textSecondary} />
+          {(commentCount ?? outfit.comment_count ?? 0) > 0 && (
+            <Text style={styles.actionCount}>
+              {commentCount ?? outfit.comment_count}
+            </Text>
+          )}
+        </TouchableOpacity>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -260,4 +289,23 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.lg,
+    paddingTop: spacing.xs,
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  actionCount: {
+    fontFamily: typography.body,
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  actionCountLiked: {
+    color: '#E53935',
+  },
 });

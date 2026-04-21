@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -13,8 +13,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import Header from '../../components/Header';
 import OutfitCard from '../../components/OutfitCard';
+import CommentsSheet from '../../components/CommentsSheet';
 import { useFeed } from '../../hooks/useFeed';
 import { useAuth } from '../../hooks/useAuth';
+import { fetchUserLikes, likePost, unlikePost } from '../../services/likes';
 import { colors, spacing, typography } from '../../utils/theme';
 
 export default function FeedScreen() {
@@ -22,6 +24,66 @@ export default function FeedScreen() {
   const { userId } = useAuth();
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
+  const [activePostId, setActivePostId] = useState<string | null>(null);
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
+  const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
+  const fetchedLikeIds = useRef<Set<string>>(new Set());
+
+  // Only fetch liked status for post IDs we haven't seen yet — never overwrite optimistic state
+  React.useEffect(() => {
+    if (!userId || outfits.length === 0) return;
+    const newIds = outfits.map((o) => o.id).filter((id) => !fetchedLikeIds.current.has(id));
+    if (newIds.length === 0) return;
+    fetchUserLikes(newIds, userId)
+      .then((liked) => {
+        newIds.forEach((id) => fetchedLikeIds.current.add(id));
+        setLikedPosts((prev) => new Set([...prev, ...liked]));
+      })
+      .catch(console.error);
+  }, [userId, outfits]);
+
+  function getCommentCount(postId: string, fallback?: number): number {
+    return commentCounts[postId] ?? fallback ?? 0;
+  }
+
+  function getLikeCount(postId: string, fallback?: number): number {
+    return likeCounts[postId] ?? fallback ?? 0;
+  }
+
+  function handleCommentAdded(postId: string) {
+    setCommentCounts((prev) => {
+      const current = prev[postId] ?? outfits.find((o) => o.id === postId)?.comment_count ?? 0;
+      return { ...prev, [postId]: current + 1 };
+    });
+  }
+
+  function handleLikePress(postId: string) {
+    const isLiked = likedPosts.has(postId);
+    // Optimistic update
+    setLikedPosts((prev) => {
+      const next = new Set(prev);
+      isLiked ? next.delete(postId) : next.add(postId);
+      return next;
+    });
+    setLikeCounts((prev) => {
+      const current = prev[postId] ?? outfits.find((o) => o.id === postId)?.like_count ?? 0;
+      return { ...prev, [postId]: Math.max(0, current + (isLiked ? -1 : 1)) };
+    });
+    // Persist
+    (isLiked ? unlikePost(postId) : likePost(postId)).catch(() => {
+      // Revert on error
+      setLikedPosts((prev) => {
+        const next = new Set(prev);
+        isLiked ? next.add(postId) : next.delete(postId);
+        return next;
+      });
+      setLikeCounts((prev) => {
+        const current = prev[postId] ?? 0;
+        return { ...prev, [postId]: Math.max(0, current + (isLiked ? 1 : -1)) };
+      });
+    });
+  }
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -48,6 +110,11 @@ export default function FeedScreen() {
           <View style={styles.cardWrapper}>
             <OutfitCard
               outfit={item}
+              commentCount={getCommentCount(item.id, item.comment_count)}
+              likeCount={getLikeCount(item.id, item.like_count)}
+              liked={likedPosts.has(item.id)}
+              onLikePress={() => handleLikePress(item.id)}
+              onCommentPress={() => setActivePostId(item.id)}
               onDelete={item.user_id === userId ? () => {
                 Alert.alert(
                   'Remove this look?',
@@ -104,6 +171,12 @@ export default function FeedScreen() {
           ) : null
         }
         showsVerticalScrollIndicator={false}
+      />
+
+      <CommentsSheet
+        postId={activePostId}
+        onClose={() => setActivePostId(null)}
+        onCommentAdded={handleCommentAdded}
       />
     </SafeAreaView>
   );

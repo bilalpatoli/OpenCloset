@@ -1,6 +1,8 @@
 import { supabase } from './supabase';
 import type { OutfitPost, OutfitPostWithItems } from '../types/outfit';
 import type { ClosetItem } from '../types/closet';
+import { fetchCommentCounts } from './comments';
+import { fetchLikeCounts } from './likes';
 
 export async function createOutfitPost(
   post: Omit<OutfitPost, 'id' | 'created_at'>,
@@ -68,6 +70,17 @@ export async function fetchFeed(
   if (error) throw error;
 
   const posts = (data ?? []).map(flattenPost);
+
+  const postIds = posts.map((p) => p.id);
+  const [commentCounts, likeCounts] = await Promise.all([
+    fetchCommentCounts(postIds).catch(() => ({} as Record<string, number>)),
+    fetchLikeCounts(postIds).catch(() => ({} as Record<string, number>)),
+  ]);
+  for (const post of posts) {
+    post.comment_count = commentCounts[post.id] ?? 0;
+    post.like_count = likeCounts[post.id] ?? 0;
+  }
+
   return { posts, hasMore: posts.length === limit };
 }
 
