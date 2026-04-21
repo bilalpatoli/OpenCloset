@@ -45,7 +45,7 @@ export default function ClosetScreen() {
   useEffect(() => {
     if (!userId) return;
     fetchUserProfile(userId).then(setProfile).catch(console.error);
-    fetchOutfitsByUser(userId).then(setOutfits).catch(console.error);
+    fetchOutfitsByUser(userId).then(({ posts }) => setOutfits(posts)).catch(console.error);
   }, [userId]);
 
   const counts = useMemo(() => {

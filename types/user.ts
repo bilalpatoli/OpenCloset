@@ -3,4 +3,7 @@ export interface UserProfile {
   username: string;
   avatar_url: string | null;
   created_at: string;
+  bio?: string;
+  location?: string;
+  updated_at?: string;
 }

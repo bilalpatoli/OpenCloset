@@ -43,7 +43,7 @@ export default function ProfileScreen() {
       fetchOutfitsByUser(userId),
       fetchCloset(userId),
     ])
-      .then(([p, o, c]) => {
+      .then(([p, { posts: o }, { items: c }]) => {
         setProfile(p);
         setOutfits(o);
         setClosetItems(c);
